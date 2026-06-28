@@ -15,6 +15,7 @@ namespace ProjekatScada.ViewModels
     public class MainViewModel : ObservableObject
     {
         private readonly IDataConcentratorService _dataConcentratorService;
+        private readonly ITagValidationService _validationService;
         private readonly IPlcSimulator _plcSimulator;
         private readonly Random _random = new Random();
         private TagBase _selectedTag;
@@ -36,6 +37,7 @@ namespace ProjekatScada.ViewModels
         {
             _plcSimulator = plcSimulator;
             _dataConcentratorService = dataConcentratorService;
+            _validationService = new TagValidationService();
 
             Tags = new ObservableCollection<TagBase>();
             Alarms = new ObservableCollection<Alarm>();
@@ -43,12 +45,15 @@ namespace ProjekatScada.ViewModels
             ActivityFeed = new ObservableCollection<string>();
 
             LoadDemoDataCommand = new RelayCommand(_ => LoadDemoData());
+            OpenAddWindowCommand = new RelayCommand(_ => OpenAddWindow());
+            ShowTagDetailsCommand = new RelayCommand(_ => ShowTagDetails());
             ScanCommand = new RelayCommand(_ => ExecuteSafely(ScanInputs));
             ToggleScanCommand = new RelayCommand(_ => ExecuteSafely(ToggleSelectedScan));
             WriteOutputCommand = new RelayCommand(_ => ExecuteSafely(WriteSelectedOutputValue));
             AcknowledgeAlarmCommand = new RelayCommand(_ => ExecuteSafely(AcknowledgeSelectedAlarm));
             GenerateReportCommand = new RelayCommand(_ => ExecuteSafely(GenerateReport));
             RemoveSelectedTagCommand = new RelayCommand(_ => ExecuteSafely(RemoveSelectedTag));
+            RemoveSelectedAlarmCommand = new RelayCommand(_ => ExecuteSafely(RemoveSelectedAlarm));
 
             _dataConcentratorService.TagValueChanged += DataConcentratorService_TagValueChanged;
             _dataConcentratorService.AlarmRaised += DataConcentratorService_AlarmRaised;
@@ -62,12 +67,15 @@ namespace ProjekatScada.ViewModels
         public ObservableCollection<string> ActivityFeed { get; private set; }
 
         public ICommand LoadDemoDataCommand { get; private set; }
+        public ICommand OpenAddWindowCommand { get; private set; }
+        public ICommand ShowTagDetailsCommand { get; private set; }
         public ICommand ScanCommand { get; private set; }
         public ICommand ToggleScanCommand { get; private set; }
         public ICommand WriteOutputCommand { get; private set; }
         public ICommand AcknowledgeAlarmCommand { get; private set; }
         public ICommand GenerateReportCommand { get; private set; }
         public ICommand RemoveSelectedTagCommand { get; private set; }
+        public ICommand RemoveSelectedAlarmCommand { get; private set; }
 
         public TagBase SelectedTag
         {
@@ -91,6 +99,16 @@ namespace ProjekatScada.ViewModels
         {
             get { return _statusMessage; }
             set { SetProperty(ref _statusMessage, value); }
+        }
+
+        public IDataConcentratorService DataConcentratorService
+        {
+            get { return _dataConcentratorService; }
+        }
+
+        public ITagValidationService ValidationService
+        {
+            get { return _validationService; }
         }
 
         private void LoadDemoData()
@@ -122,6 +140,42 @@ namespace ProjekatScada.ViewModels
             SyncCollections();
             StatusMessage = "Učitani demo tagovi i alarmi za dalji razvoj.";
             AppendActivity(StatusMessage);
+        }
+
+        private void OpenAddWindow()
+        {
+            try
+            {
+                var addWindow = new Views.AddWindow(_dataConcentratorService, _validationService);
+                addWindow.Owner = System.Windows.Application.Current.MainWindow;
+                addWindow.ShowDialog();
+
+                if (addWindow.DialogResultValue)
+                {
+                    SyncCollections();
+                    StatusMessage = "Uspešno dodat novi objekat.";
+                    AppendActivity(StatusMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = ex.Message;
+                AppendActivity(string.Format("Greška pri dodavanju: {0}", ex.Message));
+            }
+        }
+
+        private void ShowTagDetails()
+        {
+            var analogInputTag = SelectedTag as AnalogInputTag;
+            if (analogInputTag == null)
+            {
+                StatusMessage = "Izaberi AI tag da vidite detalje alarma.";
+                return;
+            }
+
+            var detailsWindow = new Views.TagDetailsWindow(analogInputTag);
+            detailsWindow.Owner = System.Windows.Application.Current.MainWindow;
+            detailsWindow.ShowDialog();
         }
 
         private void ScanInputs()
@@ -215,6 +269,22 @@ namespace ProjekatScada.ViewModels
                 StatusMessage = string.Format("Tag '{0}' je uklonjen.", SelectedTag.TagName);
                 AppendActivity(StatusMessage);
                 SelectedTag = null;
+            }
+        }
+
+        private void RemoveSelectedAlarm()
+        {
+            if (SelectedAlarm == null)
+            {
+                throw new InvalidOperationException("Izaberi alarm za brisanje.");
+            }
+
+            if (_dataConcentratorService.RemoveAlarm(SelectedAlarm.Id))
+            {
+                SyncCollections();
+                StatusMessage = string.Format("Alarm #{0} je uklonjen.", SelectedAlarm.Id);
+                AppendActivity(StatusMessage);
+                SelectedAlarm = null;
             }
         }
 

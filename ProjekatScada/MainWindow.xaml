@@ -42,6 +42,8 @@
         </Grid.RowDefinitions>
 
         <WrapPanel Grid.Row="0" Margin="0,0,0,12">
+            <Button Content="Dodaj tag/alarm" Command="{Binding OpenAddWindowCommand}" Padding="14,6" Margin="0,0,8,8" FontWeight="SemiBold" Background="#FF4CAF50" Foreground="White" />
+            <Button Content="Prikaži detalje (AI)" Command="{Binding ShowTagDetailsCommand}" Padding="14,6" Margin="0,0,8,8" />
             <Button Content="Učitaj demo podatke" Command="{Binding LoadDemoDataCommand}" Padding="14,6" Margin="0,0,8,8" />
             <Button Content="Scan ulaza" Command="{Binding ScanCommand}" Padding="14,6" Margin="0,0,8,8" />
             <Button Content="Promeni izlaz" Command="{Binding WriteOutputCommand}" Padding="14,6" Margin="0,0,8,8" />
@@ -49,6 +51,7 @@
             <Button Content="Acknowledge alarm" Command="{Binding AcknowledgeAlarmCommand}" Padding="14,6" Margin="0,0,8,8" />
             <Button Content="Generiši report" Command="{Binding GenerateReportCommand}" Padding="14,6" Margin="0,0,8,8" />
             <Button Content="Obriši izabrani tag" Command="{Binding RemoveSelectedTagCommand}" Padding="14,6" Margin="0,0,8,8" />
+            <Button Content="Obriši izabrani alarm" Command="{Binding RemoveSelectedAlarmCommand}" Padding="14,6" Margin="0,0,8,8" />
         </WrapPanel>
 
         <TabControl Grid.Row="1">
