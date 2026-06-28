@@ -1,11 +1,25 @@
 using ProjekatScada.Models.Enums;
 
+using ProjekatScada.Models.Enums;
+
 namespace ProjekatScada.Models
 {
     public abstract class InputTag : TagBase
     {
-        public int ScanTime { get; set; }
-        public bool OnOffScan { get; set; }
+        private int _scanTime;
+        private bool _onOffScan;
+
+        public int ScanTime
+        {
+            get { return _scanTime; }
+            set { SetProperty(ref _scanTime, value); }
+        }
+
+        public bool OnOffScan
+        {
+            get { return _onOffScan; }
+            set { SetProperty(ref _onOffScan, value); }
+        }
 
         protected InputTag() : base()
         {

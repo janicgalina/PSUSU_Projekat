@@ -1,15 +1,46 @@
 using ProjekatScada.Models.Enums;
 using System.Collections.Generic;
+using ProjekatScada.Models.Enums;
 
 namespace ProjekatScada.Models
 {
     public class AnalogInputTag : InputTag
     {
-        public double LowLimit { get; set; }
-        public double HighLimit { get; set; }
-        public string Units { get; set; }
-        public double Deadband { get; set; }
-        public double Hysteresis { get; set; }
+        private double _lowLimit;
+        private double _highLimit;
+        private string _units;
+        private double _deadband;
+        private double _hysteresis;
+
+        public double LowLimit
+        {
+            get { return _lowLimit; }
+            set { SetProperty(ref _lowLimit, value); }
+        }
+
+        public double HighLimit
+        {
+            get { return _highLimit; }
+            set { SetProperty(ref _highLimit, value); }
+        }
+
+        public string Units
+        {
+            get { return _units; }
+            set { SetProperty(ref _units, value); }
+        }
+
+        public double Deadband
+        {
+            get { return _deadband; }
+            set { SetProperty(ref _deadband, value); }
+        }
+
+        public double Hysteresis
+        {
+            get { return _hysteresis; }
+            set { SetProperty(ref _hysteresis, value); }
+        }
 
         public virtual ICollection<Alarm> Alarms { get; set; }
 

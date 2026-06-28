@@ -3,10 +3,126 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:ProjekatScada"
+        xmlns:enums="clr-namespace:ProjekatScada.Models.Enums"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
-        
+        Title="SCADA System"
+        Height="720"
+        Width="1200"
+        WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <Style x:Key="TagRowStyle" TargetType="DataGridRow">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsInAlarm}" Value="True">
+                    <Setter Property="Background" Value="#FFF6E58D" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding HasUnacknowledgedAlarm}" Value="True">
+                    <Setter Property="Background" Value="#FFF5B7B1" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="AlarmRowStyle" TargetType="DataGridRow">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding State}" Value="{x:Static enums:AlarmState.Acknowledged}">
+                    <Setter Property="Background" Value="#FFF6E58D" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="{x:Static enums:AlarmState.Active}">
+                    <Setter Property="Background" Value="#FFF5B7B1" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="180" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <WrapPanel Grid.Row="0" Margin="0,0,0,12">
+            <Button Content="Učitaj demo podatke" Command="{Binding LoadDemoDataCommand}" Padding="14,6" Margin="0,0,8,8" />
+            <Button Content="Scan ulaza" Command="{Binding ScanCommand}" Padding="14,6" Margin="0,0,8,8" />
+            <Button Content="Promeni izlaz" Command="{Binding WriteOutputCommand}" Padding="14,6" Margin="0,0,8,8" />
+            <Button Content="Toggle scan" Command="{Binding ToggleScanCommand}" Padding="14,6" Margin="0,0,8,8" />
+            <Button Content="Acknowledge alarm" Command="{Binding AcknowledgeAlarmCommand}" Padding="14,6" Margin="0,0,8,8" />
+            <Button Content="Generiši report" Command="{Binding GenerateReportCommand}" Padding="14,6" Margin="0,0,8,8" />
+            <Button Content="Obriši izabrani tag" Command="{Binding RemoveSelectedTagCommand}" Padding="14,6" Margin="0,0,8,8" />
+        </WrapPanel>
+
+        <TabControl Grid.Row="1">
+            <TabItem Header="Tagovi">
+                <DataGrid ItemsSource="{Binding Tags}"
+                          SelectedItem="{Binding SelectedTag}"
+                          AutoGenerateColumns="False"
+                          IsReadOnly="True"
+                          RowStyle="{StaticResource TagRowStyle}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Id" Binding="{Binding Id}" Width="55" />
+                        <DataGridTextColumn Header="Tag" Binding="{Binding TagName}" Width="150" />
+                        <DataGridTextColumn Header="Tip" Binding="{Binding TagType}" Width="80" />
+                        <DataGridTextColumn Header="Opis" Binding="{Binding Description}" Width="220" />
+                        <DataGridTextColumn Header="I/O" Binding="{Binding IOAddress}" Width="90" />
+                        <DataGridTextColumn Header="Vrednost" Binding="{Binding CurrentValue, StringFormat=F2}" Width="90" />
+                        <DataGridTextColumn Header="Scan" Binding="{Binding OnOffScan}" Width="70" />
+                        <DataGridTextColumn Header="Scan time" Binding="{Binding ScanTime}" Width="90" />
+                        <DataGridTextColumn Header="Last update" Binding="{Binding LastUpdated, StringFormat=dd.MM.yyyy HH:mm:ss}" Width="160" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <TabItem Header="Alarmi">
+                <Grid Margin="0,8,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <GroupBox Header="Definisani alarmi" Grid.Row="0" Margin="0,0,0,8">
+                        <DataGrid ItemsSource="{Binding Alarms}"
+                                  SelectedItem="{Binding SelectedAlarm}"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  RowStyle="{StaticResource AlarmRowStyle}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Id" Binding="{Binding Id}" Width="55" />
+                                <DataGridTextColumn Header="AI tag" Binding="{Binding AnalogInputTag.TagName}" Width="120" />
+                                <DataGridTextColumn Header="Trigger" Binding="{Binding TriggerType}" Width="110" />
+                                <DataGridTextColumn Header="Threshold" Binding="{Binding Threshold, StringFormat=F2}" Width="90" />
+                                <DataGridTextColumn Header="Poruka" Binding="{Binding Message}" Width="*" />
+                                <DataGridTextColumn Header="Stanje" Binding="{Binding State}" Width="120" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </GroupBox>
+
+                    <GroupBox Header="Aktivirani alarmi" Grid.Row="1">
+                        <DataGrid ItemsSource="{Binding ActivatedAlarms}"
+                                  SelectedItem="{Binding SelectedActivatedAlarm}"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  RowStyle="{StaticResource AlarmRowStyle}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Id" Binding="{Binding Id}" Width="55" />
+                                <DataGridTextColumn Header="AlarmId" Binding="{Binding AlarmId}" Width="70" />
+                                <DataGridTextColumn Header="Tag" Binding="{Binding TagName}" Width="120" />
+                                <DataGridTextColumn Header="Poruka" Binding="{Binding Message}" Width="*" />
+                                <DataGridTextColumn Header="Vrednost" Binding="{Binding Value, StringFormat=F2}" Width="90" />
+                                <DataGridTextColumn Header="Vreme" Binding="{Binding ActivationTime, StringFormat=dd.MM.yyyy HH:mm:ss}" Width="160" />
+                                <DataGridTextColumn Header="Stanje" Binding="{Binding State}" Width="120" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </GroupBox>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <GroupBox Grid.Row="2" Header="Activity feed" Margin="0,12,0,12">
+            <ListBox ItemsSource="{Binding ActivityFeed}" />
+        </GroupBox>
+
+        <Border Grid.Row="3" Background="#FF1F2937" Padding="10" CornerRadius="4">
+            <TextBlock Text="{Binding StatusMessage}" Foreground="White" FontWeight="SemiBold" />
+        </Border>
     </Grid>
 </Window>

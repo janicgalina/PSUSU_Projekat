@@ -1,5 +1,7 @@
 using ProjekatScada.Models.Enums;
 
+using ProjekatScada.Models.Enums;
+
 namespace ProjekatScada.Models
 {
     public class DigitalInputTag : InputTag

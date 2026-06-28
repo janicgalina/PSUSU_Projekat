@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
@@ -55,6 +55,17 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Infrastructure\ObservableObject.cs" />
+    <Compile Include="Infrastructure\RelayCommand.cs" />
+    <Compile Include="Services\DataConcentratorService.cs" />
+    <Compile Include="Services\FileSystemLogger.cs" />
+    <Compile Include="Services\Interfaces\IDataConcentratorService.cs" />
+    <Compile Include="Services\Interfaces\IPlcSimulator.cs" />
+    <Compile Include="Services\Interfaces\ISystemLogger.cs" />
+    <Compile Include="Services\Interfaces\ITagValidationService.cs" />
+    <Compile Include="Services\PlcSimulator.cs" />
+    <Compile Include="Services\TagValidationService.cs" />
+    <Compile Include="ViewModels\MainViewModel.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>

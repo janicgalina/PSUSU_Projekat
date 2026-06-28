@@ -1,12 +1,32 @@
 using ProjekatScada.Models.Enums;
 
+using ProjekatScada.Models.Enums;
+
 namespace ProjekatScada.Models
 {
     public class AnalogOutputTag : OutputTag
     {
-        public double LowLimit { get; set; }
-        public double HighLimit { get; set; }
-        public string Units { get; set; }
+        private double _lowLimit;
+        private double _highLimit;
+        private string _units;
+
+        public double LowLimit
+        {
+            get { return _lowLimit; }
+            set { SetProperty(ref _lowLimit, value); }
+        }
+
+        public double HighLimit
+        {
+            get { return _highLimit; }
+            set { SetProperty(ref _highLimit, value); }
+        }
+
+        public string Units
+        {
+            get { return _units; }
+            set { SetProperty(ref _units, value); }
+        }
 
         public AnalogOutputTag() : base()
         {

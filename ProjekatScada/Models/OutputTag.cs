@@ -1,10 +1,18 @@
 using ProjekatScada.Models.Enums;
 
+using ProjekatScada.Models.Enums;
+
 namespace ProjekatScada.Models
 {
     public abstract class OutputTag : TagBase
     {
-        public double InitialValue { get; set; }
+        private double _initialValue;
+
+        public double InitialValue
+        {
+            get { return _initialValue; }
+            set { SetProperty(ref _initialValue, value); }
+        }
 
         protected OutputTag() : base()
         {
