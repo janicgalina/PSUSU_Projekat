@@ -9,6 +9,7 @@
         ResizeMode="NoResize">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <infra:StringToVisibilityConverter xmlns:infra="clr-namespace:ProjekatScada.Infrastructure" x:Key="StringToVis" />
     </Window.Resources>
 
     <Grid Margin="20">
@@ -23,6 +24,7 @@
             <Label Content="Tip objekta:" FontWeight="SemiBold" />
             <ComboBox ItemsSource="{Binding ItemTypes}"
                       SelectedItem="{Binding SelectedItemType}"
+                      IsEnabled="{Binding CanChangeItemType}"
                       Padding="8,6"
                       FontSize="14" />
         </StackPanel>
@@ -114,7 +116,7 @@
                 BorderThickness="1"
                 Padding="10"
                 Margin="0,12,0,12"
-                Visibility="{Binding ValidationMessage, Converter={StaticResource BoolToVis}}">
+                Visibility="{Binding ValidationMessage, Converter={StaticResource StringToVis}}">
             <TextBlock Text="{Binding ValidationMessage}"
                        Foreground="#FFD84315"
                        TextWrapping="Wrap"

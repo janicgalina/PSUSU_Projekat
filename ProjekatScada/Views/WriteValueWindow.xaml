@@ -1,0 +1,26 @@
+<Window x:Class="ProjekatScada.Views.WriteValueWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Upis izlazne vrednosti"
+        Height="220"
+        Width="360"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="{Binding PromptText}" TextWrapping="Wrap" Margin="0,0,0,12" FontWeight="SemiBold" />
+        <TextBox Grid.Row="1" Text="{Binding ValueText, UpdateSourceTrigger=PropertyChanged}" Padding="6" Margin="0,0,0,8" />
+        <TextBlock Grid.Row="2" Text="{Binding ValidationMessage}" Foreground="#FFD84315" TextWrapping="Wrap" Margin="0,0,0,12" />
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Upiši" Click="OkButton_Click" Padding="18,8" Margin="0,0,8,0" IsDefault="True" FontWeight="SemiBold" />
+            <Button Content="Odustani" Click="CancelButton_Click" Padding="18,8" IsCancel="True" />
+        </StackPanel>
+    </Grid>
+</Window>

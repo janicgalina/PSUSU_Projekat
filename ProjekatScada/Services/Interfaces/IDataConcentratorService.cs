@@ -13,15 +13,21 @@ namespace ProjekatScada.Services.Interfaces
         IReadOnlyCollection<Alarm> Alarms { get; }
         IReadOnlyCollection<ActivatedAlarm> ActivatedAlarms { get; }
 
+        void LoadFromRepository();
         void AddTag(TagBase tag);
+        void UpdateTag(TagBase tag);
         bool RemoveTag(string tagName);
         void AddAlarm(Alarm alarm);
+        void UpdateAlarm(Alarm alarm);
         bool RemoveAlarm(int alarmId);
         void WriteOutputValue(string tagName, double value);
         void ToggleScan(string tagName, bool enabled);
         void ScanInputs();
+        void ScanInputsIfDue();
         void AcknowledgeAlarm(int alarmId);
         string GenerateReport(string outputDirectory);
+        void ExportConfiguration(string filePath);
+        void ImportConfiguration(string filePath, bool replaceExisting);
     }
 
     public class TagValueChangedEventArgs : EventArgs

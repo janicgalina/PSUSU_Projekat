@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Windows;
 using System.Windows.Input;
 using ProjekatScada.Infrastructure;
 using ProjekatScada.Models;
@@ -15,6 +14,8 @@ namespace ProjekatScada.ViewModels
     {
         private readonly IDataConcentratorService _dataConcentratorService;
         private readonly ITagValidationService _validationService;
+        private readonly TagBase _tagToEdit;
+        private readonly Alarm _alarmToEdit;
         private string _selectedItemType;
         private string _tagName;
         private string _description;
@@ -33,10 +34,17 @@ namespace ProjekatScada.ViewModels
         private AnalogInputTag _selectedAnalogInputTag;
         private string _validationMessage;
 
-        public AddItemViewModel(IDataConcentratorService dataConcentratorService, ITagValidationService validationService)
+        public AddItemViewModel(
+            IDataConcentratorService dataConcentratorService,
+            ITagValidationService validationService,
+            TagBase tagToEdit = null,
+            Alarm alarmToEdit = null)
         {
             _dataConcentratorService = dataConcentratorService;
             _validationService = validationService;
+            _tagToEdit = tagToEdit;
+            _alarmToEdit = alarmToEdit;
+            IsEditMode = tagToEdit != null || alarmToEdit != null;
 
             ItemTypes = new ObservableCollection<string> { "AI", "AO", "DI", "DO", "Alarm" };
             AlarmTriggerTypes = new ObservableCollection<AlarmTriggerType>
@@ -50,7 +58,28 @@ namespace ProjekatScada.ViewModels
             SaveCommand = new RelayCommand(_ => Save(), _ => CanSave());
             CancelCommand = new RelayCommand(_ => Cancel());
 
-            SelectedItemType = "AI";
+            if (_alarmToEdit != null)
+            {
+                SelectedItemType = "Alarm";
+                AlarmThreshold = _alarmToEdit.Threshold;
+                AlarmTriggerType = _alarmToEdit.TriggerType;
+                AlarmMessage = _alarmToEdit.Message;
+                SelectedAnalogInputTag = AnalogInputTags.FirstOrDefault(t => t.Id == _alarmToEdit.AnalogInputTagId);
+            }
+            else if (_tagToEdit != null)
+            {
+                LoadTagForEdit(_tagToEdit);
+            }
+            else
+            {
+                SelectedItemType = "AI";
+            }
+        }
+
+        public bool IsEditMode { get; private set; }
+        public string WindowTitle
+        {
+            get { return IsEditMode ? "Izmeni tag ili alarm" : "Dodaj tag ili alarm"; }
         }
 
         public ObservableCollection<string> ItemTypes { get; private set; }
@@ -67,17 +96,14 @@ namespace ProjekatScada.ViewModels
             get { return _selectedItemType; }
             set
             {
+                if (IsEditMode)
+                {
+                    return;
+                }
+
                 if (SetProperty(ref _selectedItemType, value))
                 {
-                    OnPropertyChanged(nameof(IsAnalogInput));
-                    OnPropertyChanged(nameof(IsAnalogOutput));
-                    OnPropertyChanged(nameof(IsDigitalInput));
-                    OnPropertyChanged(nameof(IsDigitalOutput));
-                    OnPropertyChanged(nameof(IsAlarm));
-                    OnPropertyChanged(nameof(IsInputTag));
-                    OnPropertyChanged(nameof(IsOutputTag));
-                    OnPropertyChanged(nameof(IsAnalogTag));
-                    OnPropertyChanged(nameof(IsTag));
+                    NotifyTypePropertiesChanged();
                     ValidationMessage = string.Empty;
                 }
             }
@@ -92,6 +118,7 @@ namespace ProjekatScada.ViewModels
         public bool IsOutputTag { get { return IsAnalogOutput || IsDigitalOutput; } }
         public bool IsAnalogTag { get { return IsAnalogInput || IsAnalogOutput; } }
         public bool IsTag { get { return !IsAlarm; } }
+        public bool CanChangeItemType { get { return !IsEditMode; } }
 
         public string TagName
         {
@@ -226,6 +253,67 @@ namespace ProjekatScada.ViewModels
 
         private void SaveTag()
         {
+            TagBase tag = BuildTagFromForm();
+            if (tag == null)
+            {
+                return;
+            }
+
+            var validationErrors = _validationService.ValidateTag(tag, _dataConcentratorService.Tags).ToList();
+            if (validationErrors.Any())
+            {
+                throw new InvalidOperationException(string.Join(Environment.NewLine, validationErrors));
+            }
+
+            if (_tagToEdit != null)
+            {
+                _dataConcentratorService.UpdateTag(tag);
+            }
+            else
+            {
+                _dataConcentratorService.AddTag(tag);
+            }
+        }
+
+        private void SaveAlarm()
+        {
+            if (SelectedAnalogInputTag == null)
+            {
+                throw new InvalidOperationException("Morate izabrati AI tag za alarm.");
+            }
+
+            Alarm alarm;
+            if (_alarmToEdit != null)
+            {
+                alarm = _alarmToEdit;
+                alarm.Threshold = AlarmThreshold;
+                alarm.TriggerType = AlarmTriggerType;
+                alarm.Message = AlarmMessage;
+                alarm.AnalogInputTagId = SelectedAnalogInputTag.Id;
+            }
+            else
+            {
+                alarm = new Alarm(AlarmThreshold, AlarmTriggerType, AlarmMessage, SelectedAnalogInputTag.Id);
+            }
+
+            var validationErrors = _validationService.ValidateAlarm(alarm, SelectedAnalogInputTag, _dataConcentratorService.Alarms).ToList();
+            if (validationErrors.Any())
+            {
+                throw new InvalidOperationException(string.Join(Environment.NewLine, validationErrors));
+            }
+
+            if (_alarmToEdit != null)
+            {
+                _dataConcentratorService.UpdateAlarm(alarm);
+            }
+            else
+            {
+                _dataConcentratorService.AddAlarm(alarm);
+            }
+        }
+
+        private TagBase BuildTagFromForm()
+        {
             TagBase tag = null;
 
             if (IsAnalogInput)
@@ -247,33 +335,65 @@ namespace ProjekatScada.ViewModels
                 tag = new DigitalOutputTag(TagName, Description, IOAddress, InitialValue);
             }
 
-            if (tag != null)
+            if (tag != null && _tagToEdit != null)
             {
-                var validationErrors = _validationService.ValidateTag(tag, _dataConcentratorService.Tags).ToList();
-                if (validationErrors.Any())
-                {
-                    throw new InvalidOperationException(string.Join(Environment.NewLine, validationErrors));
-                }
+                tag.Id = _tagToEdit.Id;
+            }
 
-                _dataConcentratorService.AddTag(tag);
+            return tag;
+        }
+
+        private void LoadTagForEdit(TagBase tag)
+        {
+            SelectedItemType = tag.TagType.ToString();
+            TagName = tag.TagName;
+            Description = tag.Description;
+            IOAddress = tag.IOAddress;
+
+            var inputTag = tag as InputTag;
+            if (inputTag != null)
+            {
+                ScanTime = inputTag.ScanTime;
+                OnOffScan = inputTag.OnOffScan;
+            }
+
+            var analogInputTag = tag as AnalogInputTag;
+            if (analogInputTag != null)
+            {
+                LowLimit = analogInputTag.LowLimit;
+                HighLimit = analogInputTag.HighLimit;
+                Units = analogInputTag.Units;
+                Deadband = analogInputTag.Deadband;
+                Hysteresis = analogInputTag.Hysteresis;
+            }
+
+            var analogOutputTag = tag as AnalogOutputTag;
+            if (analogOutputTag != null)
+            {
+                LowLimit = analogOutputTag.LowLimit;
+                HighLimit = analogOutputTag.HighLimit;
+                Units = analogOutputTag.Units;
+                InitialValue = analogOutputTag.InitialValue;
+            }
+
+            var digitalOutputTag = tag as DigitalOutputTag;
+            if (digitalOutputTag != null)
+            {
+                InitialValue = digitalOutputTag.InitialValue;
             }
         }
 
-        private void SaveAlarm()
+        private void NotifyTypePropertiesChanged()
         {
-            if (SelectedAnalogInputTag == null)
-            {
-                throw new InvalidOperationException("Morate izabrati AI tag za alarm.");
-            }
-
-            var alarm = new Alarm(AlarmThreshold, AlarmTriggerType, AlarmMessage, SelectedAnalogInputTag.Id);
-            var validationErrors = _validationService.ValidateAlarm(alarm, SelectedAnalogInputTag, _dataConcentratorService.Alarms).ToList();
-            if (validationErrors.Any())
-            {
-                throw new InvalidOperationException(string.Join(Environment.NewLine, validationErrors));
-            }
-
-            _dataConcentratorService.AddAlarm(alarm);
+            OnPropertyChanged(nameof(IsAnalogInput));
+            OnPropertyChanged(nameof(IsAnalogOutput));
+            OnPropertyChanged(nameof(IsDigitalInput));
+            OnPropertyChanged(nameof(IsDigitalOutput));
+            OnPropertyChanged(nameof(IsAlarm));
+            OnPropertyChanged(nameof(IsInputTag));
+            OnPropertyChanged(nameof(IsOutputTag));
+            OnPropertyChanged(nameof(IsAnalogTag));
+            OnPropertyChanged(nameof(IsTag));
         }
 
         private void Cancel()
