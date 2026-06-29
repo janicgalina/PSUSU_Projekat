@@ -26,6 +26,8 @@ namespace ProjekatScada.ViewModels
         private ActivatedAlarm _selectedActivatedAlarm;
         private string _statusMessage;
         private string _currentUser;
+        private UserSession _session;
+        private bool _canWrite;
 
         public MainViewModel()
         {
@@ -50,19 +52,19 @@ namespace ProjekatScada.ViewModels
             ActivatedAlarms = new ObservableCollection<ActivatedAlarm>();
             ActivityFeed = new ObservableCollection<string>();
 
-            LoadDemoDataCommand = new RelayCommand(_ => LoadDemoData());
-            OpenAddWindowCommand = new RelayCommand(_ => OpenAddWindow());
-            EditSelectedTagCommand = new RelayCommand(_ => OpenEditWindow());
+            LoadDemoDataCommand = new RelayCommand(_ => LoadDemoData(), _ => CanWrite);
+            OpenAddWindowCommand = new RelayCommand(_ => OpenAddWindow(), _ => CanWrite);
+            EditSelectedTagCommand = new RelayCommand(_ => OpenEditWindow(), _ => CanWrite);
             ShowTagDetailsCommand = new RelayCommand(_ => ShowTagDetails());
             ScanCommand = new RelayCommand(_ => ExecuteSafely(ScanInputs));
-            ToggleScanCommand = new RelayCommand(_ => ExecuteSafely(ToggleSelectedScan));
-            WriteOutputCommand = new RelayCommand(_ => ExecuteSafely(WriteSelectedOutputValue));
-            AcknowledgeAlarmCommand = new RelayCommand(_ => ExecuteSafely(AcknowledgeSelectedAlarm));
+            ToggleScanCommand = new RelayCommand(_ => ExecuteSafely(ToggleSelectedScan), _ => CanWrite);
+            WriteOutputCommand = new RelayCommand(_ => ExecuteSafely(WriteSelectedOutputValue), _ => CanWrite);
+            AcknowledgeAlarmCommand = new RelayCommand(_ => ExecuteSafely(AcknowledgeSelectedAlarm), _ => CanWrite);
             GenerateReportCommand = new RelayCommand(_ => ExecuteSafely(GenerateReport));
             ExportConfigurationCommand = new RelayCommand(_ => ExecuteSafely(ExportConfiguration));
-            ImportConfigurationCommand = new RelayCommand(_ => ExecuteSafely(ImportConfiguration));
-            RemoveSelectedTagCommand = new RelayCommand(_ => ExecuteSafely(RemoveSelectedTag));
-            RemoveSelectedAlarmCommand = new RelayCommand(_ => ExecuteSafely(RemoveSelectedAlarm));
+            ImportConfigurationCommand = new RelayCommand(_ => ExecuteSafely(ImportConfiguration), _ => CanWrite);
+            RemoveSelectedTagCommand = new RelayCommand(_ => ExecuteSafely(RemoveSelectedTag), _ => CanWrite);
+            RemoveSelectedAlarmCommand = new RelayCommand(_ => ExecuteSafely(RemoveSelectedAlarm), _ => CanWrite);
 
             _dataConcentratorService.TagValueChanged += DataConcentratorService_TagValueChanged;
             _dataConcentratorService.AlarmRaised += DataConcentratorService_AlarmRaised;
@@ -79,19 +81,19 @@ namespace ProjekatScada.ViewModels
         public ObservableCollection<ActivatedAlarm> ActivatedAlarms { get; private set; }
         public ObservableCollection<string> ActivityFeed { get; private set; }
 
-        public ICommand LoadDemoDataCommand { get; private set; }
-        public ICommand OpenAddWindowCommand { get; private set; }
-        public ICommand EditSelectedTagCommand { get; private set; }
+        public RelayCommand LoadDemoDataCommand { get; private set; }
+        public RelayCommand OpenAddWindowCommand { get; private set; }
+        public RelayCommand EditSelectedTagCommand { get; private set; }
         public ICommand ShowTagDetailsCommand { get; private set; }
         public ICommand ScanCommand { get; private set; }
-        public ICommand ToggleScanCommand { get; private set; }
-        public ICommand WriteOutputCommand { get; private set; }
-        public ICommand AcknowledgeAlarmCommand { get; private set; }
+        public RelayCommand ToggleScanCommand { get; private set; }
+        public RelayCommand WriteOutputCommand { get; private set; }
+        public RelayCommand AcknowledgeAlarmCommand { get; private set; }
         public ICommand GenerateReportCommand { get; private set; }
         public ICommand ExportConfigurationCommand { get; private set; }
-        public ICommand ImportConfigurationCommand { get; private set; }
-        public ICommand RemoveSelectedTagCommand { get; private set; }
-        public ICommand RemoveSelectedAlarmCommand { get; private set; }
+        public RelayCommand ImportConfigurationCommand { get; private set; }
+        public RelayCommand RemoveSelectedTagCommand { get; private set; }
+        public RelayCommand RemoveSelectedAlarmCommand { get; private set; }
 
         public TagBase SelectedTag
         {
@@ -123,6 +125,27 @@ namespace ProjekatScada.ViewModels
             set { SetProperty(ref _currentUser, value); }
         }
 
+        public bool CanWrite
+        {
+            get { return _canWrite; }
+            private set { SetProperty(ref _canWrite, value); }
+        }
+
+        public string AccessModeText
+        {
+            get { return CanWrite ? "Read/Write" : "Read Only"; }
+        }
+
+        public string UserInfoText
+        {
+            get
+            {
+                return _session == null
+                    ? string.Empty
+                    : string.Format("{0} ({1}) - {2}", _session.Username, _session.RoleDisplayName, AccessModeText);
+            }
+        }
+
         public IDataConcentratorService DataConcentratorService
         {
             get { return _dataConcentratorService; }
@@ -133,16 +156,24 @@ namespace ProjekatScada.ViewModels
             get { return _validationService; }
         }
 
-        public void InitializeAfterLogin(string username)
+        public void InitializeAfterLogin(UserSession session)
         {
-            CurrentUser = username;
-            _logger.Log(string.Format("Login korisnika '{0}'.", username));
+            _session = session;
+            CanWrite = session.CanWrite;
+            CurrentUser = session.Username;
+            OnPropertyChanged(nameof(AccessModeText));
+            OnPropertyChanged(nameof(UserInfoText));
+            RaiseWriteCommandStates();
+
+            _logger.Log(string.Format("Login korisnika '{0}' u ulozi {1} ({2}).", session.Username, session.Role, AccessModeText));
 
             try
             {
                 _dataConcentratorService.LoadFromRepository();
                 SyncCollections();
-                StatusMessage = string.Format("Dobrodošli, {0}. Podaci su učitani iz baze.", username);
+                StatusMessage = CanWrite
+                    ? string.Format("Dobrodošli, {0}. Imate Read/Write pristup.", session.Username)
+                    : string.Format("Dobrodošli, {0}. Imate Read Only pristup.", session.Username);
             }
             catch (Exception ex)
             {
@@ -153,8 +184,30 @@ namespace ProjekatScada.ViewModels
             AppendActivity(StatusMessage);
         }
 
+        private void EnsureCanWrite()
+        {
+            if (!CanWrite)
+            {
+                throw new InvalidOperationException("Nemate dozvolu za izmenu podataka. Samo admin ima Write pristup.");
+            }
+        }
+
+        private void RaiseWriteCommandStates()
+        {
+            LoadDemoDataCommand.RaiseCanExecuteChanged();
+            OpenAddWindowCommand.RaiseCanExecuteChanged();
+            EditSelectedTagCommand.RaiseCanExecuteChanged();
+            ToggleScanCommand.RaiseCanExecuteChanged();
+            WriteOutputCommand.RaiseCanExecuteChanged();
+            AcknowledgeAlarmCommand.RaiseCanExecuteChanged();
+            ImportConfigurationCommand.RaiseCanExecuteChanged();
+            RemoveSelectedTagCommand.RaiseCanExecuteChanged();
+            RemoveSelectedAlarmCommand.RaiseCanExecuteChanged();
+        }
+
         private void LoadDemoData()
         {
+            EnsureCanWrite();
             if (Tags.Any())
             {
                 StatusMessage = "Demo podaci se mogu učitati samo kada nema tagova.";
@@ -186,6 +239,7 @@ namespace ProjekatScada.ViewModels
 
         private void OpenAddWindow()
         {
+            EnsureCanWrite();
             try
             {
                 var addWindow = new Views.AddWindow(_dataConcentratorService, _validationService);
@@ -207,6 +261,7 @@ namespace ProjekatScada.ViewModels
 
         private void OpenEditWindow()
         {
+            EnsureCanWrite();
             if (SelectedTag == null && SelectedAlarm == null)
             {
                 StatusMessage = "Izaberi tag ili definisani alarm za izmenu.";
@@ -285,6 +340,7 @@ namespace ProjekatScada.ViewModels
 
         private void ToggleSelectedScan()
         {
+            EnsureCanWrite();
             var inputTag = SelectedTag as InputTag;
             if (inputTag == null)
             {
@@ -298,6 +354,7 @@ namespace ProjekatScada.ViewModels
 
         private void WriteSelectedOutputValue()
         {
+            EnsureCanWrite();
             var outputTag = SelectedTag as OutputTag;
             if (outputTag == null)
             {
@@ -323,6 +380,7 @@ namespace ProjekatScada.ViewModels
 
         private void AcknowledgeSelectedAlarm()
         {
+            EnsureCanWrite();
             var alarmId = SelectedActivatedAlarm != null
                 ? SelectedActivatedAlarm.AlarmId
                 : SelectedAlarm != null ? SelectedAlarm.Id : 0;
@@ -366,6 +424,7 @@ namespace ProjekatScada.ViewModels
 
         private void ImportConfiguration()
         {
+            EnsureCanWrite();
             var dialog = new OpenFileDialog
             {
                 Filter = "JSON fajlovi (*.json)|*.json"
@@ -391,6 +450,7 @@ namespace ProjekatScada.ViewModels
 
         private void RemoveSelectedTag()
         {
+            EnsureCanWrite();
             if (SelectedTag == null)
             {
                 throw new InvalidOperationException("Izaberi tag za brisanje.");
@@ -408,6 +468,7 @@ namespace ProjekatScada.ViewModels
 
         private void RemoveSelectedAlarm()
         {
+            EnsureCanWrite();
             if (SelectedAlarm == null)
             {
                 throw new InvalidOperationException("Izaberi alarm za brisanje.");

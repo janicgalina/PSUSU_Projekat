@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Windows;
-using ProjekatScada.ViewModels;
 using ProjekatScada.Views;
 
 namespace ProjekatScada
@@ -18,24 +17,45 @@ namespace ProjekatScada
             DispatcherUnhandledException += App_DispatcherUnhandledException;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
+            ShowLoginAndMainLoop();
+        }
+
+        private void ShowLoginAndMainLoop()
+        {
             var loginWindow = new LoginWindow();
             loginWindow.ShowDialog();
 
-            if (!loginWindow.LoginSuccessful)
+            if (!loginWindow.LoginSuccessful || loginWindow.Session == null)
             {
                 Shutdown();
                 return;
             }
 
             var mainWindow = new MainWindow();
-            var viewModel = mainWindow.DataContext as MainViewModel;
-            if (viewModel != null)
-            {
-                viewModel.InitializeAfterLogin(loginWindow.Username);
-            }
-
+            mainWindow.SessionExpired += MainWindow_SessionExpired;
+            mainWindow.InitializeSession(loginWindow.Session);
             MainWindow = mainWindow;
             mainWindow.Show();
+        }
+
+        private void MainWindow_SessionExpired(object sender, EventArgs e)
+        {
+            var mainWindow = sender as MainWindow;
+            if (mainWindow != null)
+            {
+                mainWindow.SessionExpired -= MainWindow_SessionExpired;
+                mainWindow.Close();
+            }
+
+            LogSessionExpired();
+            ShowLoginAndMainLoop();
+        }
+
+        private static void LogSessionExpired()
+        {
+            var logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "system.log");
+            var line = string.Format("{0:yyyy-MM-dd HH:mm:ss} | Admin je automatski odjavljen zbog neaktivnosti.", DateTime.Now);
+            File.AppendAllLines(logPath, new[] { line });
         }
 
         private void App_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
