@@ -1,35 +1,31 @@
 using System.Windows;
+using ProjekatScada.ViewModels;
 
 namespace ProjekatScada.Views
 {
     public partial class LoginWindow : Window
     {
+        private readonly LoginViewModel _viewModel;
+
         public LoginWindow()
         {
             InitializeComponent();
-            UsernameTextBox.Focus();
-        }
-
-        public string Username { get; private set; }
-        public bool LoginSuccessful { get; private set; }
-
-        private void LoginButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (string.IsNullOrWhiteSpace(UsernameTextBox.Text))
+            _viewModel = new LoginViewModel
             {
-                ValidationTextBlock.Text = "Korisničko ime je obavezno.";
-                return;
-            }
-
-            Username = UsernameTextBox.Text.Trim();
-            LoginSuccessful = true;
-            Close();
+                PasswordBox = PasswordInput
+            };
+            _viewModel.RequestClose += (sender, args) => Close();
+            DataContext = _viewModel;
         }
 
-        private void ExitButton_Click(object sender, RoutedEventArgs e)
+        public bool LoginSuccessful
         {
-            LoginSuccessful = false;
-            Close();
+            get { return _viewModel.LoginSuccessful; }
+        }
+
+        public Models.UserSession Session
+        {
+            get { return _viewModel.Session; }
         }
     }
 }
