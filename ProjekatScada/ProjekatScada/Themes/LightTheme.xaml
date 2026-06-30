@@ -1,0 +1,21 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#FFF3F4F6" />
+    <SolidColorBrush x:Key="ForegroundBrush" Color="#FF111827" />
+    <SolidColorBrush x:Key="SecondaryForegroundBrush" Color="#FF4B5563" />
+    <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="BorderBrushColor" Color="#FFD1D5DB" />
+    <SolidColorBrush x:Key="StatusBarBackgroundBrush" Color="#FF1F2937" />
+    <SolidColorBrush x:Key="StatusBarForegroundBrush" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="PrimaryButtonBackgroundBrush" Color="#FF4CAF50" />
+    <SolidColorBrush x:Key="PrimaryButtonForegroundBrush" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="AlarmActiveBrush" Color="#FFF5B7B1" />
+    <SolidColorBrush x:Key="AlarmAcknowledgedBrush" Color="#FFF6E58D" />
+    <SolidColorBrush x:Key="SettingsPanelBackgroundBrush" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="DataGridBackgroundBrush" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="DataGridAlternatingBrush" Color="#FFF9FAFB" />
+    <SolidColorBrush x:Key="ValidationBackgroundBrush" Color="#FFFEF5E7" />
+    <SolidColorBrush x:Key="ValidationBorderBrush" Color="#FFFF9800" />
+    <SolidColorBrush x:Key="ValidationForegroundBrush" Color="#FFD84315" />
+</ResourceDictionary>
