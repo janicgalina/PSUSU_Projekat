@@ -12,6 +12,11 @@ namespace ProjekatScada.Services.Interfaces
         void DeleteAlarm(int alarmId);
         void SaveActivatedAlarm(ActivatedAlarm activatedAlarm);
         void UpdateActivatedAlarm(ActivatedAlarm activatedAlarm);
+        void SaveTagValueHistory(AnalogInputTag tag);
+        IList<TagValueHistoryRecord> SearchTagValueHistory(TagValueHistoryFilter filter);
+        ActivatedAlarm GetActivatedAlarmById(int activatedAlarmId);
+        IList<ActivatedAlarm> GetActivatedAlarmsFromDatabase();
+        IList<LimitZoneHistoryRecord> GetAnalogHistoryNearLimits(double margin);
         void ReplaceAll(ScadaPersistedData data);
         void ClearAll();
     }

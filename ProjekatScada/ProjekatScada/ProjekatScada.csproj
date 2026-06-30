@@ -145,7 +145,6 @@
     <Compile Include="Models\Enums\TagType.cs" />
     <Compile Include="Models\InputTag.cs" />
     <Compile Include="Models\OutputTag.cs" />
-    <Compile Include="Models\ScadaConfigurationExport.cs" />
     <Compile Include="Models\TagValueHistoryFilter.cs" />
     <Compile Include="Models\TagValueHistoryRecord.cs" />
     <Compile Include="Models\ThemeOption.cs" />

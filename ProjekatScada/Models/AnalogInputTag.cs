@@ -1,6 +1,5 @@
 using ProjekatScada.Models.Enums;
 using System.Collections.Generic;
-using ProjekatScada.Models.Enums;
 
 namespace ProjekatScada.Models
 {

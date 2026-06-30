@@ -19,10 +19,12 @@ namespace ProjekatScada
         }
 
         public event EventHandler SessionExpired;
+        public event EventHandler LogoutRequested;
 
         public void InitializeSession(UserSession session)
         {
             _viewModel.InitializeAfterLogin(session);
+            _viewModel.LogoutRequested += ViewModel_LogoutRequested;
 
             if (session.CanWrite)
             {
@@ -34,6 +36,9 @@ namespace ProjekatScada
 
         protected override void OnClosed(EventArgs e)
         {
+            _viewModel.LogoutRequested -= ViewModel_LogoutRequested;
+            _viewModel.Shutdown();
+
             if (_inactivityMonitor != null)
             {
                 _inactivityMonitor.Stop();
@@ -52,6 +57,15 @@ namespace ProjekatScada
                 MessageBoxImage.Information);
 
             var handler = SessionExpired;
+            if (handler != null)
+            {
+                handler(this, EventArgs.Empty);
+            }
+        }
+
+        private void ViewModel_LogoutRequested(object sender, EventArgs e)
+        {
+            var handler = LogoutRequested;
             if (handler != null)
             {
                 handler(this, EventArgs.Empty);

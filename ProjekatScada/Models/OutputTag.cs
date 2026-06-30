@@ -1,7 +1,5 @@
 using ProjekatScada.Models.Enums;
 
-using ProjekatScada.Models.Enums;
-
 namespace ProjekatScada.Models
 {
     public abstract class OutputTag : TagBase

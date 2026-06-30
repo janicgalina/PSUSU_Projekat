@@ -15,6 +15,7 @@ namespace ProjekatScada.Data
         public DbSet<TagEntity> Tags { get; set; }
         public DbSet<AlarmEntity> Alarms { get; set; }
         public DbSet<ActivatedAlarmEntity> ActivatedAlarms { get; set; }
+        public DbSet<TagValueHistoryEntity> TagValueHistory { get; set; }
         public DbSet<UserEntity> Users { get; set; }
 
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
@@ -27,6 +28,8 @@ namespace ProjekatScada.Data
 
             modelBuilder.Entity<ActivatedAlarmEntity>().ToTable("ActivatedAlarms");
             modelBuilder.Entity<ActivatedAlarmEntity>().Property(a => a.Id).HasDatabaseGeneratedOption(DatabaseGeneratedOption.None);
+
+            modelBuilder.Entity<TagValueHistoryEntity>().ToTable("TagValueHistory");
 
             modelBuilder.Entity<UserEntity>().ToTable("Users");
             modelBuilder.Entity<UserEntity>().Property(u => u.Username).IsRequired().HasMaxLength(128);

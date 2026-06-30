@@ -66,18 +66,23 @@
     <Compile Include="Data\Entities\ActivatedAlarmEntity.cs" />
     <Compile Include="Data\Entities\AlarmEntity.cs" />
     <Compile Include="Data\Entities\TagEntity.cs" />
+    <Compile Include="Data\Entities\TagValueHistoryEntity.cs" />
     <Compile Include="Data\Entities\UserEntity.cs" />
     <Compile Include="Data\ScadaDatabaseInitializer.cs" />
     <Compile Include="Data\ScadaDbContext.cs" />
     <Compile Include="Data\ScadaMapper.cs" />
     <Compile Include="Data\ScadaRepository.cs" />
+    <Compile Include="Infrastructure\NumericInputHelper.cs" />
     <Compile Include="Infrastructure\ObservableObject.cs" />
     <Compile Include="Infrastructure\RelayCommand.cs" />
     <Compile Include="Infrastructure\StringToVisibilityConverter.cs" />
     <Compile Include="Services\AdminInactivityMonitor.cs" />
+    <Compile Include="Services\AlarmSoundService.cs" />
+    <Compile Include="Services\AlarmToneGenerator.cs" />
     <Compile Include="Services\AuthenticationService.cs" />
     <Compile Include="Services\DataConcentratorService.cs" />
     <Compile Include="Services\FileSystemLogger.cs" />
+    <Compile Include="Services\Interfaces\IAlarmSoundService.cs" />
     <Compile Include="Services\Interfaces\IDataConcentratorService.cs" />
     <Compile Include="Services\Interfaces\IPlcSimulator.cs" />
     <Compile Include="Services\Interfaces\IScadaRepository.cs" />
@@ -87,12 +92,15 @@
     <Compile Include="Services\PasswordValidator.cs" />
     <Compile Include="Services\PlcSimulator.cs" />
     <Compile Include="Services\TagValidationService.cs" />
+    <Compile Include="Services\ThemeService.cs" />
     <Compile Include="ViewModels\AddItemViewModel.cs" />
     <Compile Include="ViewModels\LoginViewModel.cs" />
     <Compile Include="ViewModels\MainViewModel.cs" />
+    <Compile Include="ViewModels\TagValueSearchViewModel.cs" />
     <Compile Include="Views\AddWindow.xaml.cs" />
     <Compile Include="Views\LoginWindow.xaml.cs" />
     <Compile Include="Views\TagDetailsWindow.xaml.cs" />
+    <Compile Include="Views\TagValueSearchWindow.xaml.cs" />
     <Compile Include="Views\WriteValueWindow.xaml.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
@@ -106,6 +114,15 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Page Include="Themes\DarkTheme.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Themes\LightTheme.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Themes\SharedButtonStyles.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Views\AddWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -115,25 +132,35 @@
     <Page Include="Views\TagDetailsWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="Views\TagValueSearchWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Views\WriteValueWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Models\AiTagFilterOption.cs" />
+    <Compile Include="Models\AlarmSoundOption.cs" />
     <Compile Include="Models\ActivatedAlarm.cs" />
     <Compile Include="Models\Alarm.cs" />
     <Compile Include="Models\AnalogInputTag.cs" />
     <Compile Include="Models\AnalogOutputTag.cs" />
     <Compile Include="Models\DigitalInputTag.cs" />
     <Compile Include="Models\DigitalOutputTag.cs" />
+    <Compile Include="Models\Enums\AlarmSoundProfile.cs" />
     <Compile Include="Models\Enums\AlarmState.cs" />
     <Compile Include="Models\Enums\AlarmTriggerType.cs" />
+    <Compile Include="Models\Enums\ApplicationTheme.cs" />
     <Compile Include="Models\Enums\TagType.cs" />
     <Compile Include="Models\Enums\UserRole.cs" />
     <Compile Include="Models\UserSession.cs" />
     <Compile Include="Models\InputTag.cs" />
     <Compile Include="Models\OutputTag.cs" />
-    <Compile Include="Models\ScadaConfigurationExport.cs" />
+    <Compile Include="Models\LimitZoneHistoryRecord.cs" />
+    <Compile Include="Models\TagValueHistoryFilter.cs" />
+    <Compile Include="Models\TagValueHistoryRecord.cs" />
+    <Compile Include="Models\ThemeOption.cs" />
     <Compile Include="Models\TagBase.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>

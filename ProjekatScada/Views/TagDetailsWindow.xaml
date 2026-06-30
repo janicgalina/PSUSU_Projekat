@@ -6,17 +6,24 @@
         Height="500"
         Width="700"
         WindowStartupLocation="CenterOwner"
-        ResizeMode="CanResize">
+        ResizeMode="CanResize"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        Foreground="{DynamicResource ForegroundBrush}">
     <Window.Resources>
         <Style x:Key="AlarmRowStyle" TargetType="DataGridRow">
             <Style.Triggers>
                 <DataTrigger Binding="{Binding State}" Value="{x:Static enums:AlarmState.Acknowledged}">
-                    <Setter Property="Background" Value="#FFF6E58D" />
+                    <Setter Property="Background" Value="{DynamicResource AlarmAcknowledgedBrush}" />
                 </DataTrigger>
                 <DataTrigger Binding="{Binding State}" Value="{x:Static enums:AlarmState.Active}">
-                    <Setter Property="Background" Value="#FFF5B7B1" />
+                    <Setter Property="Background" Value="{DynamicResource AlarmActiveBrush}" />
                 </DataTrigger>
             </Style.Triggers>
+        </Style>
+
+        <Style x:Key="CloseButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding" Value="20,8" />
+            <Setter Property="Margin" Value="0,16,0,0" />
         </Style>
     </Window.Resources>
 
@@ -27,78 +34,90 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Margin="0,0,0,16">
-            <TextBlock FontSize="18" FontWeight="Bold" Margin="0,0,0,12">
-                <Run Text="AI Tag: " />
-                <Run Text="{Binding TagName, Mode=OneWay}" Foreground="#FF2196F3" />
-            </TextBlock>
-
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-
-                <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,4">
-                    <Run Text="Opis: " FontWeight="SemiBold" />
-                    <Run Text="{Binding Description, Mode=OneWay}" />
+        <Border Grid.Row="0"
+                Background="{DynamicResource PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="6"
+                Padding="16"
+                Margin="0,0,0,16">
+            <StackPanel>
+                <TextBlock FontSize="18" FontWeight="Bold" Margin="0,0,0,12">
+                    <Run Text="AI Tag: " />
+                    <Run Text="{Binding TagName, Mode=OneWay}" Foreground="{DynamicResource PrimaryButtonBackgroundBrush}" />
                 </TextBlock>
 
-                <TextBlock Grid.Row="0" Grid.Column="1" Margin="0,4">
-                    <Run Text="I/O Address: " FontWeight="SemiBold" />
-                    <Run Text="{Binding IOAddress, Mode=OneWay}" />
-                </TextBlock>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,4">
-                    <Run Text="Trenutna vrednost: " FontWeight="SemiBold" />
-                    <Run Text="{Binding CurrentValue, Mode=OneWay, StringFormat=F2}" />
-                    <Run Text=" " />
-                    <Run Text="{Binding Units, Mode=OneWay}" />
-                </TextBlock>
+                    <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,4">
+                        <Run Text="Opis: " FontWeight="SemiBold" />
+                        <Run Text="{Binding Description, Mode=OneWay}" />
+                    </TextBlock>
 
-                <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,4">
-                    <Run Text="Opseg: " FontWeight="SemiBold" />
-                    <Run Text="{Binding LowLimit, Mode=OneWay, StringFormat=F2}" />
-                    <Run Text=" - " />
-                    <Run Text="{Binding HighLimit, Mode=OneWay, StringFormat=F2}" />
-                    <Run Text=" " />
-                    <Run Text="{Binding Units, Mode=OneWay}" />
-                </TextBlock>
+                    <TextBlock Grid.Row="0" Grid.Column="1" Margin="0,4">
+                        <Run Text="I/O Address: " FontWeight="SemiBold" />
+                        <Run Text="{Binding IOAddress, Mode=OneWay}" />
+                    </TextBlock>
 
-                <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,4">
-                    <Run Text="Deadband: " FontWeight="SemiBold" />
-                    <Run Text="{Binding Deadband, Mode=OneWay, StringFormat=F2}" />
-                </TextBlock>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,4">
+                        <Run Text="Trenutna vrednost: " FontWeight="SemiBold" />
+                        <Run Text="{Binding CurrentValue, Mode=OneWay, StringFormat=F2}" />
+                        <Run Text=" " />
+                        <Run Text="{Binding Units, Mode=OneWay}" />
+                    </TextBlock>
 
-                <TextBlock Grid.Row="2" Grid.Column="1" Margin="0,4">
-                    <Run Text="Hysteresis: " FontWeight="SemiBold" />
-                    <Run Text="{Binding Hysteresis, Mode=OneWay, StringFormat=F2}" />
-                </TextBlock>
+                    <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,4">
+                        <Run Text="Opseg: " FontWeight="SemiBold" />
+                        <Run Text="{Binding LowLimit, Mode=OneWay, StringFormat=F2}" />
+                        <Run Text=" - " />
+                        <Run Text="{Binding HighLimit, Mode=OneWay, StringFormat=F2}" />
+                        <Run Text=" " />
+                        <Run Text="{Binding Units, Mode=OneWay}" />
+                    </TextBlock>
 
-                <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,4">
-                    <Run Text="Scan: " FontWeight="SemiBold" />
-                    <Run Text="{Binding OnOffScan, Mode=OneWay}" />
-                </TextBlock>
+                    <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,4">
+                        <Run Text="Deadband: " FontWeight="SemiBold" />
+                        <Run Text="{Binding Deadband, Mode=OneWay, StringFormat=F2}" />
+                    </TextBlock>
 
-                <TextBlock Grid.Row="3" Grid.Column="1" Margin="0,4">
-                    <Run Text="Scan time: " FontWeight="SemiBold" />
-                    <Run Text="{Binding ScanTime, Mode=OneWay}" />
-                    <Run Text=" ms" />
-                </TextBlock>
-            </Grid>
-        </StackPanel>
+                    <TextBlock Grid.Row="2" Grid.Column="1" Margin="0,4">
+                        <Run Text="Hysteresis: " FontWeight="SemiBold" />
+                        <Run Text="{Binding Hysteresis, Mode=OneWay, StringFormat=F2}" />
+                    </TextBlock>
 
-        <GroupBox Grid.Row="1" Header="Alarmi vezani za ovaj AI tag" Padding="8">
+                    <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,4">
+                        <Run Text="Scan: " FontWeight="SemiBold" />
+                        <Run Text="{Binding OnOffScan, Mode=OneWay}" />
+                    </TextBlock>
+
+                    <TextBlock Grid.Row="3" Grid.Column="1" Margin="0,4">
+                        <Run Text="Scan time: " FontWeight="SemiBold" />
+                        <Run Text="{Binding ScanTime, Mode=OneWay}" />
+                        <Run Text=" ms" />
+                    </TextBlock>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <GroupBox Grid.Row="1"
+                  Header="Alarmi vezani za ovaj AI tag"
+                  Padding="8">
             <DataGrid ItemsSource="{Binding Alarms}"
                       AutoGenerateColumns="False"
                       IsReadOnly="True"
-                      RowStyle="{StaticResource AlarmRowStyle}">
+                      RowStyle="{StaticResource AlarmRowStyle}"
+                      Background="{DynamicResource DataGridBackgroundBrush}"
+                      AlternatingRowBackground="{DynamicResource DataGridAlternatingBrush}">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Id" Binding="{Binding Id}" Width="55" />
                     <DataGridTextColumn Header="Trigger" Binding="{Binding TriggerType}" Width="110" />
@@ -111,8 +130,7 @@
 
         <Button Grid.Row="2"
                 Content="Zatvori"
-                Padding="20,8"
-                Margin="0,16,0,0"
+                Style="{StaticResource CloseButtonStyle}"
                 HorizontalAlignment="Right"
                 IsCancel="True"
                 Click="CloseButton_Click" />

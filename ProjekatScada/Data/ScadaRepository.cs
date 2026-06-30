@@ -4,6 +4,7 @@ using System.Linq;
 using ProjekatScada.Data;
 using ProjekatScada.Data.Entities;
 using ProjekatScada.Models;
+using ProjekatScada.Models.Enums;
 using ProjekatScada.Services.Interfaces;
 
 namespace ProjekatScada.Data
@@ -14,6 +15,8 @@ namespace ProjekatScada.Data
         {
             using (var context = new ScadaDbContext())
             {
+                context.Database.Initialize(false);
+
                 var tagEntities = context.Tags.AsNoTracking().ToList();
                 var tags = tagEntities.Select(ScadaMapper.ToDomain).ToList();
                 var analogTagsById = tags.OfType<AnalogInputTag>().ToDictionary(t => t.Id);
@@ -72,6 +75,9 @@ namespace ProjekatScada.Data
                 var entity = context.Tags.Find(tagId);
                 if (entity != null)
                 {
+                    var historyRecords = context.TagValueHistory.Where(record => record.TagId == tagId).ToList();
+                    context.TagValueHistory.RemoveRange(historyRecords);
+
                     var dependentAlarms = context.Alarms.Where(a => a.AnalogInputTagId == tagId).ToList();
                     context.Alarms.RemoveRange(dependentAlarms);
                     context.Tags.Remove(entity);
@@ -135,10 +141,140 @@ namespace ProjekatScada.Data
             }
         }
 
+        public void SaveTagValueHistory(AnalogInputTag tag)
+        {
+            using (var context = new ScadaDbContext())
+            {
+                context.TagValueHistory.Add(new TagValueHistoryEntity
+                {
+                    TagId = tag.Id,
+                    TagName = tag.TagName,
+                    Value = tag.CurrentValue,
+                    RecordedAt = tag.LastUpdated
+                });
+                context.SaveChanges();
+            }
+        }
+
+        public IList<TagValueHistoryRecord> SearchTagValueHistory(TagValueHistoryFilter filter)
+        {
+            using (var context = new ScadaDbContext())
+            {
+                var query = context.TagValueHistory.AsNoTracking().AsQueryable();
+
+                if (!string.IsNullOrWhiteSpace(filter.TagName))
+                {
+                    query = query.Where(record => record.TagName == filter.TagName);
+                }
+
+                if (filter.FromTime.HasValue)
+                {
+                    query = query.Where(record => record.RecordedAt >= filter.FromTime.Value);
+                }
+
+                if (filter.ToTime.HasValue)
+                {
+                    query = query.Where(record => record.RecordedAt <= filter.ToTime.Value);
+                }
+
+                if (filter.FromValue.HasValue)
+                {
+                    query = query.Where(record => record.Value >= filter.FromValue.Value);
+                }
+
+                if (filter.ToValue.HasValue)
+                {
+                    query = query.Where(record => record.Value <= filter.ToValue.Value);
+                }
+
+                return query
+                    .OrderBy(record => record.RecordedAt)
+                    .ThenBy(record => record.TagName)
+                    .Select(record => new TagValueHistoryRecord
+                    {
+                        Id = record.Id,
+                        TagId = record.TagId,
+                        TagName = record.TagName,
+                        Value = record.Value,
+                        RecordedAt = record.RecordedAt
+                    })
+                    .ToList();
+            }
+        }
+
+        public ActivatedAlarm GetActivatedAlarmById(int activatedAlarmId)
+        {
+            using (var context = new ScadaDbContext())
+            {
+                var entity = context.ActivatedAlarms.AsNoTracking()
+                    .FirstOrDefault(a => a.Id == activatedAlarmId);
+
+                return entity == null ? null : ScadaMapper.ToDomain(entity);
+            }
+        }
+
+        public IList<ActivatedAlarm> GetActivatedAlarmsFromDatabase()
+        {
+            using (var context = new ScadaDbContext())
+            {
+                return context.ActivatedAlarms
+                    .AsNoTracking()
+                    .OrderByDescending(a => a.ActivationTime)
+                    .AsEnumerable()
+                    .Select(ScadaMapper.ToDomain)
+                    .ToList();
+            }
+        }
+
+        public IList<LimitZoneHistoryRecord> GetAnalogHistoryNearLimits(double margin)
+        {
+            using (var context = new ScadaDbContext())
+            {
+                var analogTags = context.Tags
+                    .AsNoTracking()
+                    .Where(t => t.TagType == TagType.AI)
+                    .ToDictionary(t => t.Id);
+
+                var results = new List<LimitZoneHistoryRecord>();
+
+                foreach (var history in context.TagValueHistory.AsNoTracking())
+                {
+                    TagEntity tag;
+                    if (!analogTags.TryGetValue(history.TagId, out tag))
+                    {
+                        continue;
+                    }
+
+                    var lowLimit = tag.LowLimit ?? 0;
+                    var highLimit = tag.HighLimit ?? 0;
+                    if (Math.Abs(history.Value - lowLimit) > margin && Math.Abs(history.Value - highLimit) > margin)
+                    {
+                        continue;
+                    }
+
+                    results.Add(new LimitZoneHistoryRecord
+                    {
+                        TagName = history.TagName,
+                        Value = history.Value,
+                        LowLimit = lowLimit,
+                        HighLimit = highLimit,
+                        Units = tag.Units ?? string.Empty,
+                        RecordedAt = history.RecordedAt
+                    });
+                }
+
+                return results
+                    .OrderBy(record => record.RecordedAt)
+                    .ThenBy(record => record.TagName)
+                    .ToList();
+            }
+        }
+
         public void ClearAll()
         {
             using (var context = new ScadaDbContext())
             {
+                context.TagValueHistory.RemoveRange(context.TagValueHistory);
                 context.ActivatedAlarms.RemoveRange(context.ActivatedAlarms);
                 context.Alarms.RemoveRange(context.Alarms);
                 context.Tags.RemoveRange(context.Tags);
@@ -150,6 +286,7 @@ namespace ProjekatScada.Data
         {
             using (var context = new ScadaDbContext())
             {
+                context.TagValueHistory.RemoveRange(context.TagValueHistory);
                 context.ActivatedAlarms.RemoveRange(context.ActivatedAlarms);
                 context.Alarms.RemoveRange(context.Alarms);
                 context.Tags.RemoveRange(context.Tags);

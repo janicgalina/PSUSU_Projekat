@@ -4,10 +4,10 @@ using System.IO;
 using System.Linq;
 using System.Windows.Input;
 using System.Windows.Threading;
-using Microsoft.Win32;
 using ProjekatScada.Infrastructure;
 using ProjekatScada.Models;
 using ProjekatScada.Models.Enums;
+using ProjekatScada.Properties;
 using ProjekatScada.Services;
 using ProjekatScada.Services.Interfaces;
 
@@ -19,6 +19,7 @@ namespace ProjekatScada.ViewModels
         private ITagValidationService _validationService;
         private IPlcSimulator _plcSimulator;
         private ISystemLogger _logger;
+        private IAlarmSoundService _alarmSoundService;
         private readonly Random _random = new Random();
         private DispatcherTimer _scanTimer;
         private TagBase _selectedTag;
@@ -28,6 +29,11 @@ namespace ProjekatScada.ViewModels
         private string _currentUser;
         private UserSession _session;
         private bool _canWrite;
+        private double _alarmVolumePercent = 70;
+        private AlarmSoundOption _selectedAlarmSoundOption;
+        private ThemeOption _selectedThemeOption;
+        private bool _isAlarmSoundActive;
+        private bool _isShutdown;
 
         public MainViewModel()
         {
@@ -45,26 +51,42 @@ namespace ProjekatScada.ViewModels
             _plcSimulator = plcSimulator;
             _dataConcentratorService = dataConcentratorService;
             _logger = logger;
+            _alarmSoundService = new AlarmSoundService();
             _validationService = new TagValidationService();
 
             Tags = new ObservableCollection<TagBase>();
             Alarms = new ObservableCollection<Alarm>();
             ActivatedAlarms = new ObservableCollection<ActivatedAlarm>();
             ActivityFeed = new ObservableCollection<string>();
+            AlarmSoundOptions = new ObservableCollection<AlarmSoundOption>
+            {
+                new AlarmSoundOption { Profile = AlarmSoundProfile.ClassicBeep, DisplayName = "Klasični beep" },
+                new AlarmSoundOption { Profile = AlarmSoundProfile.Siren, DisplayName = "Sirena" },
+                new AlarmSoundOption { Profile = AlarmSoundProfile.Buzzer, DisplayName = "Buzzer" },
+                new AlarmSoundOption { Profile = AlarmSoundProfile.AlertPulse, DisplayName = "Alert pulse" }
+            };
+            ThemeOptions = new ObservableCollection<ThemeOption>
+            {
+                new ThemeOption { Theme = ApplicationTheme.Light, DisplayName = "Light" },
+                new ThemeOption { Theme = ApplicationTheme.Dark, DisplayName = "Dark" }
+            };
+
+            LoadAppearanceSettings();
 
             LoadDemoDataCommand = new RelayCommand(_ => LoadDemoData(), _ => CanWrite);
             OpenAddWindowCommand = new RelayCommand(_ => OpenAddWindow(), _ => CanWrite);
-            EditSelectedTagCommand = new RelayCommand(_ => OpenEditWindow(), _ => CanWrite);
-            ShowTagDetailsCommand = new RelayCommand(_ => ShowTagDetails());
+            EditSelectedTagCommand = new RelayCommand(_ => OpenEditWindow(), _ => CanWrite && HasEditableSelection());
+            ShowTagDetailsCommand = new RelayCommand(_ => ShowTagDetails(), _ => SelectedTag is AnalogInputTag);
             ScanCommand = new RelayCommand(_ => ExecuteSafely(ScanInputs));
-            ToggleScanCommand = new RelayCommand(_ => ExecuteSafely(ToggleSelectedScan), _ => CanWrite);
-            WriteOutputCommand = new RelayCommand(_ => ExecuteSafely(WriteSelectedOutputValue), _ => CanWrite);
-            AcknowledgeAlarmCommand = new RelayCommand(_ => ExecuteSafely(AcknowledgeSelectedAlarm), _ => CanWrite);
+            ToggleScanCommand = new RelayCommand(_ => ExecuteSafely(ToggleSelectedScan), _ => CanWrite && SelectedTag is InputTag);
+            WriteOutputCommand = new RelayCommand(_ => ExecuteSafely(WriteSelectedOutputValue), _ => CanWrite && SelectedTag is OutputTag);
+            AcknowledgeAlarmCommand = new RelayCommand(_ => ExecuteSafely(AcknowledgeSelectedAlarm), _ => CanWrite && HasAcknowledgeableSelection());
             GenerateReportCommand = new RelayCommand(_ => ExecuteSafely(GenerateReport));
-            ExportConfigurationCommand = new RelayCommand(_ => ExecuteSafely(ExportConfiguration));
-            ImportConfigurationCommand = new RelayCommand(_ => ExecuteSafely(ImportConfiguration), _ => CanWrite);
-            RemoveSelectedTagCommand = new RelayCommand(_ => ExecuteSafely(RemoveSelectedTag), _ => CanWrite);
-            RemoveSelectedAlarmCommand = new RelayCommand(_ => ExecuteSafely(RemoveSelectedAlarm), _ => CanWrite);
+            RemoveSelectedTagCommand = new RelayCommand(_ => ExecuteSafely(RemoveSelectedTag), _ => CanWrite && SelectedTag != null);
+            RemoveSelectedAlarmCommand = new RelayCommand(_ => ExecuteSafely(RemoveSelectedAlarm), _ => CanWrite && SelectedAlarm != null);
+            OpenTagValueSearchCommand = new RelayCommand(_ => OpenTagValueSearchWindow());
+            PreviewAlarmSoundCommand = new RelayCommand(_ => ExecuteSafely(PreviewAlarmSound));
+            LogoutCommand = new RelayCommand(_ => OnLogoutRequested());
 
             _dataConcentratorService.TagValueChanged += DataConcentratorService_TagValueChanged;
             _dataConcentratorService.AlarmRaised += DataConcentratorService_AlarmRaised;
@@ -80,37 +102,77 @@ namespace ProjekatScada.ViewModels
         public ObservableCollection<Alarm> Alarms { get; private set; }
         public ObservableCollection<ActivatedAlarm> ActivatedAlarms { get; private set; }
         public ObservableCollection<string> ActivityFeed { get; private set; }
+        public ObservableCollection<AlarmSoundOption> AlarmSoundOptions { get; private set; }
+        public ObservableCollection<ThemeOption> ThemeOptions { get; private set; }
 
         public RelayCommand LoadDemoDataCommand { get; private set; }
         public RelayCommand OpenAddWindowCommand { get; private set; }
         public RelayCommand EditSelectedTagCommand { get; private set; }
-        public ICommand ShowTagDetailsCommand { get; private set; }
+        public RelayCommand ShowTagDetailsCommand { get; private set; }
         public ICommand ScanCommand { get; private set; }
         public RelayCommand ToggleScanCommand { get; private set; }
         public RelayCommand WriteOutputCommand { get; private set; }
         public RelayCommand AcknowledgeAlarmCommand { get; private set; }
         public ICommand GenerateReportCommand { get; private set; }
-        public ICommand ExportConfigurationCommand { get; private set; }
-        public RelayCommand ImportConfigurationCommand { get; private set; }
         public RelayCommand RemoveSelectedTagCommand { get; private set; }
         public RelayCommand RemoveSelectedAlarmCommand { get; private set; }
+        public RelayCommand OpenTagValueSearchCommand { get; private set; }
+        public RelayCommand PreviewAlarmSoundCommand { get; private set; }
+        public RelayCommand LogoutCommand { get; private set; }
+
+        public event EventHandler LogoutRequested;
 
         public TagBase SelectedTag
         {
             get { return _selectedTag; }
-            set { SetProperty(ref _selectedTag, value); }
+            set
+            {
+                if (SetProperty(ref _selectedTag, value))
+                {
+                    if (value != null)
+                    {
+                        ClearAlarmSelections();
+                    }
+
+                    RaiseSelectionCommandStates();
+                }
+            }
         }
 
         public Alarm SelectedAlarm
         {
             get { return _selectedAlarm; }
-            set { SetProperty(ref _selectedAlarm, value); }
+            set
+            {
+                if (SetProperty(ref _selectedAlarm, value))
+                {
+                    if (value != null)
+                    {
+                        ClearTagSelection();
+                        ClearActivatedAlarmSelection();
+                    }
+
+                    RaiseSelectionCommandStates();
+                }
+            }
         }
 
         public ActivatedAlarm SelectedActivatedAlarm
         {
             get { return _selectedActivatedAlarm; }
-            set { SetProperty(ref _selectedActivatedAlarm, value); }
+            set
+            {
+                if (SetProperty(ref _selectedActivatedAlarm, value))
+                {
+                    if (value != null)
+                    {
+                        ClearTagSelection();
+                        ClearAlarmDefinitionSelection();
+                    }
+
+                    RaiseSelectionCommandStates();
+                }
+            }
         }
 
         public string StatusMessage
@@ -143,6 +205,46 @@ namespace ProjekatScada.ViewModels
                 return _session == null
                     ? string.Empty
                     : string.Format("{0} ({1}) - {2}", _session.Username, _session.RoleDisplayName, AccessModeText);
+            }
+        }
+
+        public double AlarmVolumePercent
+        {
+            get { return _alarmVolumePercent; }
+            set
+            {
+                if (SetProperty(ref _alarmVolumePercent, value))
+                {
+                    _alarmSoundService.Volume = value / 100d;
+                    Settings.Default.AlarmVolume = _alarmSoundService.Volume;
+                    Settings.Default.Save();
+                }
+            }
+        }
+
+        public AlarmSoundOption SelectedAlarmSoundOption
+        {
+            get { return _selectedAlarmSoundOption; }
+            set
+            {
+                if (SetProperty(ref _selectedAlarmSoundOption, value) && value != null)
+                {
+                    _alarmSoundService.SelectedProfile = value.Profile;
+                    Settings.Default.AlarmSoundProfile = value.Profile.ToString();
+                    Settings.Default.Save();
+                }
+            }
+        }
+
+        public ThemeOption SelectedThemeOption
+        {
+            get { return _selectedThemeOption; }
+            set
+            {
+                if (SetProperty(ref _selectedThemeOption, value) && value != null)
+                {
+                    ThemeService.ApplyTheme(value.Theme);
+                }
             }
         }
 
@@ -184,6 +286,28 @@ namespace ProjekatScada.ViewModels
             AppendActivity(StatusMessage);
         }
 
+        public void Shutdown()
+        {
+            if (_isShutdown)
+            {
+                return;
+            }
+
+            _isShutdown = true;
+
+            if (_scanTimer != null)
+            {
+                _scanTimer.Stop();
+                _scanTimer = null;
+            }
+
+            _dataConcentratorService.TagValueChanged -= DataConcentratorService_TagValueChanged;
+            _dataConcentratorService.AlarmRaised -= DataConcentratorService_AlarmRaised;
+
+            _alarmSoundService.Stop();
+            _isAlarmSoundActive = false;
+        }
+
         private void EnsureCanWrite()
         {
             if (!CanWrite)
@@ -200,9 +324,82 @@ namespace ProjekatScada.ViewModels
             ToggleScanCommand.RaiseCanExecuteChanged();
             WriteOutputCommand.RaiseCanExecuteChanged();
             AcknowledgeAlarmCommand.RaiseCanExecuteChanged();
-            ImportConfigurationCommand.RaiseCanExecuteChanged();
             RemoveSelectedTagCommand.RaiseCanExecuteChanged();
             RemoveSelectedAlarmCommand.RaiseCanExecuteChanged();
+            ShowTagDetailsCommand.RaiseCanExecuteChanged();
+        }
+
+        private void RaiseSelectionCommandStates()
+        {
+            EditSelectedTagCommand.RaiseCanExecuteChanged();
+            ToggleScanCommand.RaiseCanExecuteChanged();
+            WriteOutputCommand.RaiseCanExecuteChanged();
+            AcknowledgeAlarmCommand.RaiseCanExecuteChanged();
+            RemoveSelectedTagCommand.RaiseCanExecuteChanged();
+            RemoveSelectedAlarmCommand.RaiseCanExecuteChanged();
+            ShowTagDetailsCommand.RaiseCanExecuteChanged();
+        }
+
+        private bool HasEditableSelection()
+        {
+            return SelectedTag != null || SelectedAlarm != null;
+        }
+
+        private bool HasAcknowledgeableSelection()
+        {
+            if (SelectedActivatedAlarm != null)
+            {
+                return SelectedActivatedAlarm.State == AlarmState.Active;
+            }
+
+            if (SelectedAlarm != null)
+            {
+                return SelectedAlarm.State == AlarmState.Active;
+            }
+
+            return false;
+        }
+
+        private void ClearTagSelection()
+        {
+            if (_selectedTag != null)
+            {
+                _selectedTag = null;
+                OnPropertyChanged(nameof(SelectedTag));
+            }
+        }
+
+        private void ClearAlarmDefinitionSelection()
+        {
+            if (_selectedAlarm != null)
+            {
+                _selectedAlarm = null;
+                OnPropertyChanged(nameof(SelectedAlarm));
+            }
+        }
+
+        private void ClearActivatedAlarmSelection()
+        {
+            if (_selectedActivatedAlarm != null)
+            {
+                _selectedActivatedAlarm = null;
+                OnPropertyChanged(nameof(SelectedActivatedAlarm));
+            }
+        }
+
+        private void ClearAlarmSelections()
+        {
+            ClearAlarmDefinitionSelection();
+            ClearActivatedAlarmSelection();
+        }
+
+        private void OnLogoutRequested()
+        {
+            var handler = LogoutRequested;
+            if (handler != null)
+            {
+                handler(this, EventArgs.Empty);
+            }
         }
 
         private void LoadDemoData()
@@ -270,9 +467,20 @@ namespace ProjekatScada.ViewModels
 
             try
             {
-                var addWindow = SelectedAlarm != null
-                    ? new Views.AddWindow(_dataConcentratorService, _validationService, null, SelectedAlarm)
-                    : new Views.AddWindow(_dataConcentratorService, _validationService, SelectedTag, null);
+                Views.AddWindow addWindow;
+                if (SelectedTag != null)
+                {
+                    addWindow = new Views.AddWindow(_dataConcentratorService, _validationService, SelectedTag, null);
+                }
+                else if (SelectedAlarm != null)
+                {
+                    addWindow = new Views.AddWindow(_dataConcentratorService, _validationService, null, SelectedAlarm);
+                }
+                else
+                {
+                    StatusMessage = "Izaberi tag ili definisani alarm za izmenu.";
+                    return;
+                }
 
                 addWindow.Owner = System.Windows.Application.Current.MainWindow;
                 addWindow.ShowDialog();
@@ -308,7 +516,8 @@ namespace ProjekatScada.ViewModels
         {
             SimulatePlcInputChanges();
             _dataConcentratorService.ScanInputs();
-            SyncCollections();
+            SyncActivatedAlarms();
+            RefreshAlarmSoundState();
             StatusMessage = "Scan ulaza je uspešno izvršen.";
             AppendActivity(StatusMessage);
         }
@@ -317,7 +526,7 @@ namespace ProjekatScada.ViewModels
         {
             SimulatePlcInputChanges();
             _dataConcentratorService.ScanInputsIfDue();
-            SyncCollections();
+            RefreshAlarmSoundState();
         }
 
         private void SimulatePlcInputChanges()
@@ -373,7 +582,6 @@ namespace ProjekatScada.ViewModels
             }
 
             _dataConcentratorService.WriteOutputValue(outputTag.TagName, writeWindow.ParsedValue);
-            SyncCollections();
             StatusMessage = string.Format("Nova izlazna vrednost za '{0}' je {1:F2}.", outputTag.TagName, writeWindow.ParsedValue);
             AppendActivity(StatusMessage);
         }
@@ -381,19 +589,98 @@ namespace ProjekatScada.ViewModels
         private void AcknowledgeSelectedAlarm()
         {
             EnsureCanWrite();
-            var alarmId = SelectedActivatedAlarm != null
-                ? SelectedActivatedAlarm.AlarmId
-                : SelectedAlarm != null ? SelectedAlarm.Id : 0;
 
-            if (alarmId == 0)
+            if (!HasAcknowledgeableSelection())
             {
-                throw new InvalidOperationException("Izaberi alarm koji želiš da acknowledge-uješ.");
+                throw new InvalidOperationException("Izaberi aktiviran alarm u stanju Active da bi ga acknowledge-ovao.");
             }
 
+            var alarmId = SelectedActivatedAlarm != null
+                ? SelectedActivatedAlarm.AlarmId
+                : SelectedAlarm.Id;
+
             _dataConcentratorService.AcknowledgeAlarm(alarmId);
-            SyncCollections();
+            RefreshAlarmSoundState();
             StatusMessage = string.Format("Alarm #{0} je acknowledge-ovan.", alarmId);
             AppendActivity(StatusMessage);
+        }
+
+        private void PreviewAlarmSound()
+        {
+            _alarmSoundService.Preview();
+            StatusMessage = "Pušten test zvuka alarma.";
+            AppendActivity(StatusMessage);
+
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.1) };
+            timer.Tick += (s, e) =>
+            {
+                timer.Stop();
+                RefreshAlarmSoundState();
+            };
+            timer.Start();
+        }
+
+        private void LoadAppearanceSettings()
+        {
+            AlarmVolumePercent = Settings.Default.AlarmVolume * 100d;
+
+            AlarmSoundProfile savedProfile;
+            if (!Enum.TryParse(Settings.Default.AlarmSoundProfile, out savedProfile))
+            {
+                savedProfile = AlarmSoundProfile.ClassicBeep;
+            }
+
+            SelectedAlarmSoundOption = AlarmSoundOptions.FirstOrDefault(option => option.Profile == savedProfile)
+                ?? AlarmSoundOptions.First();
+
+            ApplicationTheme savedTheme;
+            if (!Enum.TryParse(Settings.Default.ApplicationTheme, out savedTheme))
+            {
+                savedTheme = ThemeService.CurrentTheme;
+            }
+
+            SelectedThemeOption = ThemeOptions.FirstOrDefault(option => option.Theme == savedTheme)
+                ?? ThemeOptions.First();
+        }
+
+        private void RefreshAlarmSoundState()
+        {
+            var hasUnacknowledgedAlarms = _dataConcentratorService.Alarms.Any(alarm => alarm.State == AlarmState.Active);
+            if (hasUnacknowledgedAlarms)
+            {
+                if (!_isAlarmSoundActive)
+                {
+                    _alarmSoundService.Start();
+                    _isAlarmSoundActive = true;
+                }
+            }
+            else
+            {
+                _alarmSoundService.Stop();
+                _isAlarmSoundActive = false;
+            }
+        }
+
+        private void OpenTagValueSearchWindow()
+        {
+            try
+            {
+                var searchWindow = new Views.TagValueSearchWindow(_dataConcentratorService)
+                {
+                    Owner = System.Windows.Application.Current.MainWindow
+                };
+                searchWindow.ShowDialog();
+
+                if (searchWindow.DialogResultValue)
+                {
+                    StatusMessage = string.Format("AI pretraga je generisala fajl: {0}", searchWindow.GeneratedFilePath);
+                    AppendActivity(StatusMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogError("Greška pri pretrazi AI vrednosti", ex);
+            }
         }
 
         private void GenerateReport()
@@ -401,50 +688,6 @@ namespace ProjekatScada.ViewModels
             var reportsDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Reports");
             var path = _dataConcentratorService.GenerateReport(reportsDirectory);
             StatusMessage = string.Format("Report je generisan: {0}", path);
-            AppendActivity(StatusMessage);
-        }
-
-        private void ExportConfiguration()
-        {
-            var dialog = new SaveFileDialog
-            {
-                Filter = "JSON fajlovi (*.json)|*.json",
-                FileName = "scada_config.json"
-            };
-
-            if (dialog.ShowDialog() != true)
-            {
-                return;
-            }
-
-            _dataConcentratorService.ExportConfiguration(dialog.FileName);
-            StatusMessage = string.Format("Konfiguracija je exportovana u {0}.", dialog.FileName);
-            AppendActivity(StatusMessage);
-        }
-
-        private void ImportConfiguration()
-        {
-            EnsureCanWrite();
-            var dialog = new OpenFileDialog
-            {
-                Filter = "JSON fajlovi (*.json)|*.json"
-            };
-
-            if (dialog.ShowDialog() != true)
-            {
-                return;
-            }
-
-            var replaceExisting = Tags.Any() &&
-                System.Windows.MessageBox.Show(
-                    "Da li želite da zamenite postojeću konfiguraciju?",
-                    "Import konfiguracije",
-                    System.Windows.MessageBoxButton.YesNo,
-                    System.Windows.MessageBoxImage.Question) == System.Windows.MessageBoxResult.Yes;
-
-            _dataConcentratorService.ImportConfiguration(dialog.FileName, replaceExisting);
-            SyncCollections();
-            StatusMessage = string.Format("Konfiguracija je importovana iz {0}.", dialog.FileName);
             AppendActivity(StatusMessage);
         }
 
@@ -486,9 +729,45 @@ namespace ProjekatScada.ViewModels
 
         private void SyncCollections()
         {
+            var selectedTagId = SelectedTag != null ? SelectedTag.Id : 0;
+            var selectedAlarmId = SelectedAlarm != null ? SelectedAlarm.Id : 0;
+            var selectedActivatedAlarmId = SelectedActivatedAlarm != null ? SelectedActivatedAlarm.Id : 0;
+
             ReplaceCollection(Tags, _dataConcentratorService.Tags);
             ReplaceCollection(Alarms, _dataConcentratorService.Alarms);
             ReplaceCollection(ActivatedAlarms, _dataConcentratorService.ActivatedAlarms.OrderByDescending(a => a.ActivationTime));
+
+            if (selectedTagId > 0)
+            {
+                SelectedTag = Tags.FirstOrDefault(t => t.Id == selectedTagId);
+            }
+
+            if (selectedAlarmId > 0)
+            {
+                SelectedAlarm = Alarms.FirstOrDefault(a => a.Id == selectedAlarmId);
+            }
+
+            if (selectedActivatedAlarmId > 0)
+            {
+                SelectedActivatedAlarm = ActivatedAlarms.FirstOrDefault(a => a.Id == selectedActivatedAlarmId);
+            }
+
+            RefreshAlarmSoundState();
+            AcknowledgeAlarmCommand.RaiseCanExecuteChanged();
+        }
+
+        private void SyncActivatedAlarms()
+        {
+            var selectedActivatedAlarmId = SelectedActivatedAlarm != null ? SelectedActivatedAlarm.Id : 0;
+
+            ReplaceCollection(ActivatedAlarms, _dataConcentratorService.ActivatedAlarms.OrderByDescending(a => a.ActivationTime));
+
+            if (selectedActivatedAlarmId > 0)
+            {
+                SelectedActivatedAlarm = ActivatedAlarms.FirstOrDefault(a => a.Id == selectedActivatedAlarmId);
+            }
+
+            AcknowledgeAlarmCommand.RaiseCanExecuteChanged();
         }
 
         private static void ReplaceCollection<T>(ObservableCollection<T> target, System.Collections.Generic.IEnumerable<T> source)
@@ -502,6 +781,11 @@ namespace ProjekatScada.ViewModels
 
         private void ExecuteSafely(Action action)
         {
+            if (_isShutdown)
+            {
+                return;
+            }
+
             try
             {
                 action();
@@ -526,8 +810,28 @@ namespace ProjekatScada.ViewModels
 
         private void DataConcentratorService_AlarmRaised(object sender, AlarmRaisedEventArgs e)
         {
-            AppendActivity(string.Format("Alarm: {0} | Tag: {1} | Value: {2:F2}", e.Alarm.Message, e.ActivatedAlarm.TagName, e.ActivatedAlarm.Value));
-            SyncCollections();
+            if (_isShutdown)
+            {
+                return;
+            }
+
+            _dataConcentratorService.ReloadActivatedAlarmsFromDatabase();
+            var activatedAlarmFromDatabase = _dataConcentratorService.GetActivatedAlarmFromDatabase(e.ActivatedAlarm.Id) ?? e.ActivatedAlarm;
+
+            AppendActivity(string.Format(
+                "Alarm (iz baze): {0} | Tag: {1} | Value: {2:F2} | Vreme: {3:dd.MM.yyyy HH:mm:ss}",
+                activatedAlarmFromDatabase.Message,
+                activatedAlarmFromDatabase.TagName,
+                activatedAlarmFromDatabase.Value,
+                activatedAlarmFromDatabase.ActivationTime));
+
+            SyncActivatedAlarms();
+            RefreshAlarmSoundState();
+
+            _logger.Log(string.Format(
+                "UI osvežen iz baze za aktivirani alarm #{0} (ActivatedAlarmId={1}).",
+                e.Alarm.Id,
+                activatedAlarmFromDatabase.Id));
         }
 
         private void AppendActivity(string message)

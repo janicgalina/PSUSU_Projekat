@@ -8,15 +8,27 @@
         Title="SCADA System"
         Height="720"
         Width="1200"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        Foreground="{DynamicResource ForegroundBrush}">
     <Window.Resources>
+        <Style x:Key="ToolbarButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding" Value="14,6" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+
+        <Style x:Key="PrimaryToolbarButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+            <Setter Property="Padding" Value="14,6" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+
         <Style x:Key="TagRowStyle" TargetType="DataGridRow">
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsInAlarm}" Value="True">
-                    <Setter Property="Background" Value="#FFF6E58D" />
+                    <Setter Property="Background" Value="{DynamicResource AlarmAcknowledgedBrush}" />
                 </DataTrigger>
                 <DataTrigger Binding="{Binding HasUnacknowledgedAlarm}" Value="True">
-                    <Setter Property="Background" Value="#FFF5B7B1" />
+                    <Setter Property="Background" Value="{DynamicResource AlarmActiveBrush}" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -24,10 +36,10 @@
         <Style x:Key="AlarmRowStyle" TargetType="DataGridRow">
             <Style.Triggers>
                 <DataTrigger Binding="{Binding State}" Value="{x:Static enums:AlarmState.Acknowledged}">
-                    <Setter Property="Background" Value="#FFF6E58D" />
+                    <Setter Property="Background" Value="{DynamicResource AlarmAcknowledgedBrush}" />
                 </DataTrigger>
                 <DataTrigger Binding="{Binding State}" Value="{x:Static enums:AlarmState.Active}">
-                    <Setter Property="Background" Value="#FFF5B7B1" />
+                    <Setter Property="Background" Value="{DynamicResource AlarmActiveBrush}" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -41,29 +53,68 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <WrapPanel Grid.Row="0" Margin="0,0,0,12">
-            <Button Content="Dodaj tag/alarm" Command="{Binding OpenAddWindowCommand}" IsEnabled="{Binding CanWrite}" Padding="14,6" Margin="0,0,8,8" FontWeight="SemiBold" Background="#FF4CAF50" Foreground="White" />
-            <Button Content="Izmeni izabrano" Command="{Binding EditSelectedTagCommand}" IsEnabled="{Binding CanWrite}" Padding="14,6" Margin="0,0,8,8" />
-            <Button Content="Prikaži detalje (AI)" Command="{Binding ShowTagDetailsCommand}" Padding="14,6" Margin="0,0,8,8" />
-            <Button Content="Učitaj demo podatke" Command="{Binding LoadDemoDataCommand}" IsEnabled="{Binding CanWrite}" Padding="14,6" Margin="0,0,8,8" />
-            <Button Content="Scan ulaza" Command="{Binding ScanCommand}" Padding="14,6" Margin="0,0,8,8" />
-            <Button Content="Promeni izlaz" Command="{Binding WriteOutputCommand}" IsEnabled="{Binding CanWrite}" Padding="14,6" Margin="0,0,8,8" />
-            <Button Content="Toggle scan" Command="{Binding ToggleScanCommand}" IsEnabled="{Binding CanWrite}" Padding="14,6" Margin="0,0,8,8" />
-            <Button Content="Acknowledge alarm" Command="{Binding AcknowledgeAlarmCommand}" IsEnabled="{Binding CanWrite}" Padding="14,6" Margin="0,0,8,8" />
-            <Button Content="Generiši report" Command="{Binding GenerateReportCommand}" Padding="14,6" Margin="0,0,8,8" />
-            <Button Content="Export" Command="{Binding ExportConfigurationCommand}" Padding="14,6" Margin="0,0,8,8" />
-            <Button Content="Import" Command="{Binding ImportConfigurationCommand}" IsEnabled="{Binding CanWrite}" Padding="14,6" Margin="0,0,8,8" />
-            <Button Content="Obriši izabrani tag" Command="{Binding RemoveSelectedTagCommand}" IsEnabled="{Binding CanWrite}" Padding="14,6" Margin="0,0,8,8" />
-            <Button Content="Obriši izabrani alarm" Command="{Binding RemoveSelectedAlarmCommand}" IsEnabled="{Binding CanWrite}" Padding="14,6" Margin="0,0,8,8" />
-        </WrapPanel>
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <GroupBox Header="Tagovi i konfiguracija" Margin="0,0,0,8" Padding="10,8">
+                <WrapPanel>
+                    <Button Content="Dodaj tag/alarm"
+                            Command="{Binding OpenAddWindowCommand}"
+                            Style="{StaticResource PrimaryToolbarButtonStyle}" />
+                    <Button Content="Izmeni izabrano"
+                            Command="{Binding EditSelectedTagCommand}"
+                            Style="{StaticResource ToolbarButtonStyle}" />
+                    <Button Content="Obriši izabrani tag"
+                            Command="{Binding RemoveSelectedTagCommand}"
+                            Style="{StaticResource ToolbarButtonStyle}" />
+                    <Button Content="Obriši izabrani alarm"
+                            Command="{Binding RemoveSelectedAlarmCommand}"
+                            Style="{StaticResource ToolbarButtonStyle}" />
+                    <Button Content="Učitaj demo podatke"
+                            Command="{Binding LoadDemoDataCommand}"
+                            Style="{StaticResource ToolbarButtonStyle}" />
+                </WrapPanel>
+            </GroupBox>
 
-        <TabControl Grid.Row="1">
+            <GroupBox Header="Scan i I/O" Margin="0,0,0,8" Padding="10,8">
+                <WrapPanel>
+                    <Button Content="Scan ulaza"
+                            Command="{Binding ScanCommand}"
+                            Style="{StaticResource ToolbarButtonStyle}" />
+                    <Button Content="Toggle scan"
+                            Command="{Binding ToggleScanCommand}"
+                            Style="{StaticResource ToolbarButtonStyle}" />
+                    <Button Content="Promeni izlaz"
+                            Command="{Binding WriteOutputCommand}"
+                            Style="{StaticResource ToolbarButtonStyle}" />
+                    <Button Content="Prikaži detalje (AI)"
+                            Command="{Binding ShowTagDetailsCommand}"
+                            Style="{StaticResource ToolbarButtonStyle}" />
+                    <Button Content="Pretraga AI vrednosti"
+                            Command="{Binding OpenTagValueSearchCommand}"
+                            Style="{StaticResource ToolbarButtonStyle}" />
+                </WrapPanel>
+            </GroupBox>
+
+            <GroupBox Header="Alarmi i izveštaji" Padding="10,8">
+                <WrapPanel>
+                    <Button Content="Acknowledge alarm"
+                            Command="{Binding AcknowledgeAlarmCommand}"
+                            Style="{StaticResource ToolbarButtonStyle}" />
+                    <Button Content="Generiši report"
+                            Command="{Binding GenerateReportCommand}"
+                            Style="{StaticResource ToolbarButtonStyle}" />
+                </WrapPanel>
+            </GroupBox>
+        </StackPanel>
+
+        <TabControl Grid.Row="1" Background="{DynamicResource PanelBackgroundBrush}">
             <TabItem Header="Tagovi">
                 <DataGrid ItemsSource="{Binding Tags}"
                           SelectedItem="{Binding SelectedTag}"
                           AutoGenerateColumns="False"
                           IsReadOnly="True"
-                          RowStyle="{StaticResource TagRowStyle}">
+                          RowStyle="{StaticResource TagRowStyle}"
+                          Background="{DynamicResource DataGridBackgroundBrush}"
+                          AlternatingRowBackground="{DynamicResource DataGridAlternatingBrush}">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Id" Binding="{Binding Id}" Width="55" />
                         <DataGridTextColumn Header="Tag" Binding="{Binding TagName}" Width="150" />
@@ -73,7 +124,7 @@
                         <DataGridTextColumn Header="Vrednost" Binding="{Binding CurrentValue, StringFormat=F2}" Width="90" />
                         <DataGridTextColumn Header="Scan" Binding="{Binding OnOffScan}" Width="70" />
                         <DataGridTextColumn Header="Scan time" Binding="{Binding ScanTime}" Width="90" />
-                        <DataGridTextColumn Header="Last update" Binding="{Binding LastUpdated, StringFormat=dd.MM.yyyy HH:mm:ss}" Width="160" />
+                        <DataGridTextColumn Header="Last update" Binding="{Binding LastUpdated, StringFormat=dd.MM.yyyy HH:mm:ss}" Width="*" MinWidth="160" />
                     </DataGrid.Columns>
                 </DataGrid>
             </TabItem>
@@ -90,7 +141,9 @@
                                   SelectedItem="{Binding SelectedAlarm}"
                                   AutoGenerateColumns="False"
                                   IsReadOnly="True"
-                                  RowStyle="{StaticResource AlarmRowStyle}">
+                                  RowStyle="{StaticResource AlarmRowStyle}"
+                                  Background="{DynamicResource DataGridBackgroundBrush}"
+                                  AlternatingRowBackground="{DynamicResource DataGridAlternatingBrush}">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Id" Binding="{Binding Id}" Width="55" />
                                 <DataGridTextColumn Header="AI tag" Binding="{Binding AnalogInputTag.TagName}" Width="120" />
@@ -107,7 +160,9 @@
                                   SelectedItem="{Binding SelectedActivatedAlarm}"
                                   AutoGenerateColumns="False"
                                   IsReadOnly="True"
-                                  RowStyle="{StaticResource AlarmRowStyle}">
+                                  RowStyle="{StaticResource AlarmRowStyle}"
+                                  Background="{DynamicResource DataGridBackgroundBrush}"
+                                  AlternatingRowBackground="{DynamicResource DataGridAlternatingBrush}">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Id" Binding="{Binding Id}" Width="55" />
                                 <DataGridTextColumn Header="AlarmId" Binding="{Binding AlarmId}" Width="70" />
@@ -121,24 +176,100 @@
                     </GroupBox>
                 </Grid>
             </TabItem>
+
+            <TabItem Header="Podešavanja">
+                <Border Background="{DynamicResource SettingsPanelBackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrushColor}"
+                        BorderThickness="1"
+                        Padding="20"
+                        Margin="0,8,0,0"
+                        CornerRadius="6">
+                    <StackPanel MaxWidth="520" HorizontalAlignment="Left">
+                        <TextBlock Text="Izgled aplikacije"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,12" />
+
+                        <TextBlock Text="Tema:" FontWeight="SemiBold" Margin="0,0,0,6" />
+                        <ComboBox ItemsSource="{Binding ThemeOptions}"
+                                  SelectedItem="{Binding SelectedThemeOption}"
+                                  DisplayMemberPath="DisplayName"
+                                  Padding="8,6"
+                                  Margin="0,0,0,20" />
+
+                        <TextBlock Text="Zvuk alarma"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,12" />
+
+                        <TextBlock Text="Zvučni signal:" FontWeight="SemiBold" Margin="0,0,0,6" />
+                        <ComboBox ItemsSource="{Binding AlarmSoundOptions}"
+                                  SelectedItem="{Binding SelectedAlarmSoundOption}"
+                                  DisplayMemberPath="DisplayName"
+                                  Padding="8,6"
+                                  Margin="0,0,0,16" />
+
+                        <TextBlock Text="Jačina zvuka alarma:" FontWeight="SemiBold" Margin="0,0,0,6" />
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Slider Minimum="0"
+                                    Maximum="100"
+                                    Value="{Binding AlarmVolumePercent, UpdateSourceTrigger=PropertyChanged}"
+                                    VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1"
+                                       Margin="12,0,0,0"
+                                       VerticalAlignment="Center"
+                                       Text="{Binding AlarmVolumePercent, StringFormat={}{0:F0}%}" />
+                        </Grid>
+
+                        <Button Content="Testiraj zvuk alarma"
+                                Command="{Binding PreviewAlarmSoundCommand}"
+                                Padding="14,8"
+                                HorizontalAlignment="Left"
+                                Margin="0,8,0,0" />
+
+                        <TextBlock Text="Zvuk se automatski pušta pri aktivaciji alarma i gasi se nakon acknowledge-a svih aktivnih alarma."
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource SecondaryForegroundBrush}"
+                                   Margin="0,16,0,0" />
+                    </StackPanel>
+                </Border>
+            </TabItem>
         </TabControl>
 
         <GroupBox Grid.Row="2" Header="Activity feed" Margin="0,12,0,12">
-            <ListBox ItemsSource="{Binding ActivityFeed}" />
+            <ListBox ItemsSource="{Binding ActivityFeed}"
+                     Background="{DynamicResource PanelBackgroundBrush}" />
         </GroupBox>
 
-        <Border Grid.Row="3" Background="#FF1F2937" Padding="10" CornerRadius="4">
+        <Border Grid.Row="3"
+                Background="{DynamicResource StatusBarBackgroundBrush}"
+                Padding="10"
+                CornerRadius="4">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="{Binding StatusMessage}" Foreground="White" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding StatusMessage}"
+                           Foreground="{DynamicResource StatusBarForegroundBrush}"
+                           FontWeight="SemiBold" />
                 <TextBlock Grid.Column="1"
                            Text="{Binding UserInfoText}"
-                           Foreground="#FFD1D5DB"
+                           Foreground="{DynamicResource StatusBarForegroundBrush}"
                            FontWeight="SemiBold"
-                           Margin="16,0,0,0" />
+                           VerticalAlignment="Center"
+                           Margin="16,0,12,0" />
+                <Button Grid.Column="2"
+                        Content="Odjava"
+                        Command="{Binding LogoutCommand}"
+                        Padding="12,4"
+                        MinWidth="80"
+                        VerticalAlignment="Center" />
             </Grid>
         </Border>
     </Grid>

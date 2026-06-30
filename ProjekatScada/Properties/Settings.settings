@@ -3,5 +3,15 @@
   <Profiles>
     <Profile Name="(Default)" />
   </Profiles>
-  <Settings />
+  <Settings>
+    <Setting Name="AlarmVolume" Type="System.Double" Scope="User">
+      <Value Profile="(Default)">0.7</Value>
+    </Setting>
+    <Setting Name="AlarmSoundProfile" Type="System.String" Scope="User">
+      <Value Profile="(Default)">ClassicBeep</Value>
+    </Setting>
+    <Setting Name="ApplicationTheme" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Light</Value>
+    </Setting>
+  </Settings>
 </SettingsFile>

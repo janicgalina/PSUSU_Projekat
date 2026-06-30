@@ -26,8 +26,9 @@ namespace ProjekatScada.Services.Interfaces
         void ScanInputsIfDue();
         void AcknowledgeAlarm(int alarmId);
         string GenerateReport(string outputDirectory);
-        void ExportConfiguration(string filePath);
-        void ImportConfiguration(string filePath, bool replaceExisting);
+        ActivatedAlarm GetActivatedAlarmFromDatabase(int activatedAlarmId);
+        void ReloadActivatedAlarmsFromDatabase();
+        string GenerateTagValueHistoryReport(TagValueHistoryFilter filter, string outputDirectory);
     }
 
     public class TagValueChangedEventArgs : EventArgs

@@ -1,0 +1,95 @@
+<Window x:Class="ProjekatScada.Views.TagValueSearchWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:infra="clr-namespace:ProjekatScada.Infrastructure"
+        Title="Pretraga vrednosti AI tagova"
+        Height="520"
+        Width="520"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        Foreground="{DynamicResource ForegroundBrush}">
+    <Window.Resources>
+        <infra:StringToVisibilityConverter x:Key="StringToVis" />
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Text="Filtrirajte AI vrednosti iz baze. Prazna polja se ignorišu."
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,16"
+                   Foreground="{DynamicResource SecondaryForegroundBrush}" />
+
+        <StackPanel Grid.Row="1">
+            <TextBlock Text="Ime taga:" FontWeight="SemiBold" Margin="0,0,0,6" />
+            <ComboBox ItemsSource="{Binding TagOptions}"
+                      SelectedItem="{Binding SelectedTagOption}"
+                      DisplayMemberPath="DisplayName"
+                      Padding="8,6"
+                      Margin="0,0,0,16" />
+
+            <TextBlock Text="Vreme od:" FontWeight="SemiBold" Margin="0,0,0,6" />
+            <TextBox Text="{Binding FromDateTimeText, UpdateSourceTrigger=PropertyChanged}"
+                     Padding="6"
+                     Margin="0,0,0,4" />
+            <TextBlock Text="Format: dd.MM.yyyy HH:mm:ss (opciono)"
+                       Foreground="{DynamicResource SecondaryForegroundBrush}"
+                       FontSize="11"
+                       Margin="0,0,0,12" />
+
+            <TextBlock Text="Vreme do:" FontWeight="SemiBold" Margin="0,0,0,6" />
+            <TextBox Text="{Binding ToDateTimeText, UpdateSourceTrigger=PropertyChanged}"
+                     Padding="6"
+                     Margin="0,0,0,16" />
+
+            <TextBlock Text="Vrednost od:" FontWeight="SemiBold" Margin="0,0,0,6" />
+            <TextBox Text="{Binding FromValueText, UpdateSourceTrigger=PropertyChanged}"
+                     Padding="6"
+                     Margin="0,0,0,12" />
+
+            <TextBlock Text="Vrednost do:" FontWeight="SemiBold" Margin="0,0,0,6" />
+            <TextBox Text="{Binding ToValueText, UpdateSourceTrigger=PropertyChanged}"
+                     Padding="6"
+                     Margin="0,0,0,8" />
+        </StackPanel>
+
+        <Border Grid.Row="2"
+                Background="{DynamicResource ValidationBackgroundBrush}"
+                BorderBrush="{DynamicResource ValidationBorderBrush}"
+                BorderThickness="1"
+                Padding="10"
+                Margin="0,8,0,8"
+                Visibility="{Binding ValidationMessage, Converter={StaticResource StringToVis}}">
+            <TextBlock Text="{Binding ValidationMessage}"
+                       Foreground="{DynamicResource ValidationForegroundBrush}"
+                       TextWrapping="Wrap" />
+        </Border>
+
+        <TextBlock Grid.Row="3"
+                   Text="{Binding ResultMessage}"
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,12"
+                   Foreground="{DynamicResource SecondaryForegroundBrush}" />
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Generate TXT"
+                    Command="{Binding GenerateTxtCommand}"
+                    Padding="18,8"
+                    Margin="0,0,8,0"
+                    FontWeight="SemiBold"
+                    IsDefault="True" />
+            <Button Content="Zatvori"
+                    Command="{Binding CloseCommand}"
+                    Padding="18,8"
+                    IsCancel="True" />
+        </StackPanel>
+    </Grid>
+</Window>

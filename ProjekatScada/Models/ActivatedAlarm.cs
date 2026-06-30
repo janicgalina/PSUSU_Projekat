@@ -1,6 +1,4 @@
 using System;
-
-using System;
 using ProjekatScada.Infrastructure;
 using ProjekatScada.Models.Enums;
 

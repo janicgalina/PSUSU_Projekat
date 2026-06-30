@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.Serialization.Json;
 using System.Text;
 using ProjekatScada.Models;
 using ProjekatScada.Models.Enums;
@@ -75,6 +74,11 @@ namespace ProjekatScada.Services
             }
 
             _logger.Log(string.Format("Učitano {0} tagova, {1} alarma i {2} aktiviranih alarma iz baze.", _tags.Count, _alarms.Count, _activatedAlarms.Count));
+
+            foreach (var analogTag in _tags.OfType<AnalogInputTag>())
+            {
+                EvaluateAlarms(analogTag);
+            }
         }
 
         public void AddTag(TagBase tag)
@@ -108,27 +112,58 @@ namespace ProjekatScada.Services
                 throw new InvalidOperationException(string.Join(Environment.NewLine, validationErrors));
             }
 
-            var index = _tags.IndexOf(existingTag);
-            tag.CurrentValue = existingTag.CurrentValue;
-            tag.LastUpdated = existingTag.LastUpdated;
-            tag.IsInAlarm = existingTag.IsInAlarm;
-            tag.HasUnacknowledgedAlarm = existingTag.HasUnacknowledgedAlarm;
-
-            var analogInputTag = tag as AnalogInputTag;
-            if (analogInputTag != null)
+            if (existingTag.GetType() != tag.GetType())
             {
-                var previousAlarms = (existingTag as AnalogInputTag).Alarms.ToList();
-                analogInputTag.Alarms = previousAlarms;
-                foreach (var alarm in previousAlarms)
-                {
-                    alarm.AnalogInputTag = analogInputTag;
-                }
+                throw new InvalidOperationException("Tip taga se ne može menjati pri izmeni.");
             }
 
-            _tags[index] = tag;
-            RegisterTagWithPlc(tag);
-            _repository.SaveTag(tag);
-            _logger.Log(string.Format("Ažuriran tag '{0}'.", tag.TagName));
+            ApplyTagChanges(existingTag, tag);
+            RegisterTagWithPlc(existingTag);
+            _repository.SaveTag(existingTag);
+            _logger.Log(string.Format("Ažuriran tag '{0}'.", existingTag.TagName));
+        }
+
+        private static void ApplyTagChanges(TagBase target, TagBase source)
+        {
+            target.TagName = source.TagName;
+            target.Description = source.Description;
+            target.IOAddress = source.IOAddress;
+
+            var targetInput = target as InputTag;
+            var sourceInput = source as InputTag;
+            if (targetInput != null && sourceInput != null)
+            {
+                targetInput.ScanTime = sourceInput.ScanTime;
+                targetInput.OnOffScan = sourceInput.OnOffScan;
+            }
+
+            var targetAnalogInput = target as AnalogInputTag;
+            var sourceAnalogInput = source as AnalogInputTag;
+            if (targetAnalogInput != null && sourceAnalogInput != null)
+            {
+                targetAnalogInput.LowLimit = sourceAnalogInput.LowLimit;
+                targetAnalogInput.HighLimit = sourceAnalogInput.HighLimit;
+                targetAnalogInput.Units = sourceAnalogInput.Units;
+                targetAnalogInput.Deadband = sourceAnalogInput.Deadband;
+                targetAnalogInput.Hysteresis = sourceAnalogInput.Hysteresis;
+            }
+
+            var targetAnalogOutput = target as AnalogOutputTag;
+            var sourceAnalogOutput = source as AnalogOutputTag;
+            if (targetAnalogOutput != null && sourceAnalogOutput != null)
+            {
+                targetAnalogOutput.LowLimit = sourceAnalogOutput.LowLimit;
+                targetAnalogOutput.HighLimit = sourceAnalogOutput.HighLimit;
+                targetAnalogOutput.Units = sourceAnalogOutput.Units;
+                targetAnalogOutput.InitialValue = sourceAnalogOutput.InitialValue;
+            }
+
+            var targetDigitalOutput = target as DigitalOutputTag;
+            var sourceDigitalOutput = source as DigitalOutputTag;
+            if (targetDigitalOutput != null && sourceDigitalOutput != null)
+            {
+                targetDigitalOutput.InitialValue = sourceDigitalOutput.InitialValue;
+            }
         }
 
         public bool RemoveTag(string tagName)
@@ -325,104 +360,91 @@ namespace ProjekatScada.Services
             Directory.CreateDirectory(outputDirectory);
             var filePath = Path.Combine(outputDirectory, string.Format("report_{0:yyyyMMdd_HHmmss}.txt", DateTime.Now));
             var builder = new StringBuilder();
-            builder.AppendLine("SCADA report - analogni ulazi u zoni limita +/- 5");
+            builder.AppendLine("SCADA report - istorija analognih ulaza u zoni limita +/- 5");
             builder.AppendLine(string.Format("Generisano: {0:dd.MM.yyyy HH:mm:ss}", DateTime.Now));
             builder.AppendLine();
 
-            var analogTags = _tags.OfType<AnalogInputTag>()
-                .Where(t => Math.Abs(t.CurrentValue - t.LowLimit) <= 5 || Math.Abs(t.CurrentValue - t.HighLimit) <= 5)
-                .OrderBy(t => t.TagName)
-                .ToList();
+            var records = _repository.GetAnalogHistoryNearLimits(5);
 
-            if (!analogTags.Any())
+            if (!records.Any())
             {
-                builder.AppendLine("Nema analognih ulaza u zoni limita.");
+                builder.AppendLine("Nema zapisa u istoriji gde je vrednost bila u zoni low/high limit +/- 5.");
             }
             else
             {
-                foreach (var tag in analogTags)
+                builder.AppendLine("Tag | Vreme | Vrednost | Low | High | Units");
+                builder.AppendLine(new string('-', 90));
+                foreach (var record in records)
                 {
-                    builder.AppendLine(string.Format("{0} | Value={1:F2} {2} | Low={3:F2} | High={4:F2} | LastUpdated={5:dd.MM.yyyy HH:mm:ss}",
-                        tag.TagName,
-                        tag.CurrentValue,
-                        tag.Units,
-                        tag.LowLimit,
-                        tag.HighLimit,
-                        tag.LastUpdated));
+                    builder.AppendLine(string.Format("{0} | {1:dd.MM.yyyy HH:mm:ss} | {2:F2} | {3:F2} | {4:F2} | {5}",
+                        record.TagName,
+                        record.RecordedAt,
+                        record.Value,
+                        record.LowLimit,
+                        record.HighLimit,
+                        record.Units));
                 }
             }
 
             File.WriteAllText(filePath, builder.ToString());
-            _logger.Log(string.Format("Generisan report '{0}'.", filePath));
+            _logger.Log(string.Format("Generisan report '{0}' ({1} istorijskih zapisa).", filePath, records.Count));
             return filePath;
         }
 
-        public void ExportConfiguration(string filePath)
+        public ActivatedAlarm GetActivatedAlarmFromDatabase(int activatedAlarmId)
         {
-            var export = new ScadaConfigurationExport
-            {
-                Tags = _tags.Select(CreateExportedTag).ToList(),
-                Alarms = _alarms.Select(CreateExportedAlarm).ToList()
-            };
-
-            using (var stream = File.Create(filePath))
-            {
-                var serializer = new DataContractJsonSerializer(typeof(ScadaConfigurationExport));
-                serializer.WriteObject(stream, export);
-            }
-
-            _logger.Log(string.Format("Export konfiguracije u '{0}'.", filePath));
+            return _repository.GetActivatedAlarmById(activatedAlarmId);
         }
 
-        public void ImportConfiguration(string filePath, bool replaceExisting)
+        public void ReloadActivatedAlarmsFromDatabase()
         {
-            ScadaConfigurationExport export;
-            using (var stream = File.OpenRead(filePath))
-            {
-                var serializer = new DataContractJsonSerializer(typeof(ScadaConfigurationExport));
-                export = (ScadaConfigurationExport)serializer.ReadObject(stream);
-            }
+            var fromDatabase = _repository.GetActivatedAlarmsFromDatabase();
+            _activatedAlarms.Clear();
+            _activatedAlarms.AddRange(fromDatabase);
 
-            if (export == null || export.Tags == null)
+            if (fromDatabase.Any())
             {
-                throw new InvalidOperationException("Import fajl nije validan.");
+                _nextActivatedAlarmId = fromDatabase.Max(a => a.Id);
             }
+        }
 
-            if (replaceExisting)
+        public string GenerateTagValueHistoryReport(TagValueHistoryFilter filter, string outputDirectory)
+        {
+            var records = _repository.SearchTagValueHistory(filter);
+            Directory.CreateDirectory(outputDirectory);
+            var filePath = Path.Combine(outputDirectory, string.Format("ai_search_{0:yyyyMMdd_HHmmss}.txt", DateTime.Now));
+            var builder = new StringBuilder();
+            builder.AppendLine("SCADA report - pretraga vrednosti AI tagova");
+            builder.AppendLine(string.Format("Generisano: {0:dd.MM.yyyy HH:mm:ss}", DateTime.Now));
+            builder.AppendLine();
+            builder.AppendLine("Uslovi pretrage:");
+            builder.AppendLine(string.Format("  Tag: {0}", string.IsNullOrWhiteSpace(filter.TagName) ? "svi" : filter.TagName));
+            builder.AppendLine(string.Format("  Vreme od: {0}", filter.FromTime.HasValue ? filter.FromTime.Value.ToString("dd.MM.yyyy HH:mm:ss") : "nije zadato"));
+            builder.AppendLine(string.Format("  Vreme do: {0}", filter.ToTime.HasValue ? filter.ToTime.Value.ToString("dd.MM.yyyy HH:mm:ss") : "nije zadato"));
+            builder.AppendLine(string.Format("  Vrednost od: {0}", filter.FromValue.HasValue ? filter.FromValue.Value.ToString("F2") : "nije zadato"));
+            builder.AppendLine(string.Format("  Vrednost do: {0}", filter.ToValue.HasValue ? filter.ToValue.Value.ToString("F2") : "nije zadato"));
+            builder.AppendLine();
+
+            if (!records.Any())
             {
-                _repository.ClearAll();
-                _tags.Clear();
-                _alarms.Clear();
-                _activatedAlarms.Clear();
-                _lastScanByTagId.Clear();
-                _nextTagId = 0;
-                _nextAlarmId = 0;
-                _nextActivatedAlarmId = 0;
+                builder.AppendLine("Nema zapisa koji zadovoljavaju zadate uslove.");
             }
-
-            var tagNameToId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            foreach (var exportedTag in export.Tags)
+            else
             {
-                var tag = CreateTagFromExport(exportedTag);
-                AddTag(tag);
-                tagNameToId[tag.TagName] = tag.Id;
-            }
-
-            if (export.Alarms != null)
-            {
-                foreach (var exportedAlarm in export.Alarms)
+                builder.AppendLine("Tag | Vreme | Vrednost");
+                builder.AppendLine(new string('-', 60));
+                foreach (var record in records)
                 {
-                    int analogInputTagId;
-                    if (!tagNameToId.TryGetValue(exportedAlarm.AnalogInputTagName, out analogInputTagId))
-                    {
-                        continue;
-                    }
-
-                    AddAlarm(new Alarm(exportedAlarm.Threshold, exportedAlarm.TriggerType, exportedAlarm.Message, analogInputTagId));
+                    builder.AppendLine(string.Format("{0} | {1:dd.MM.yyyy HH:mm:ss} | {2:F2}",
+                        record.TagName,
+                        record.RecordedAt,
+                        record.Value));
                 }
             }
 
-            _logger.Log(string.Format("Import konfiguracije iz '{0}'.", filePath));
+            File.WriteAllText(filePath, builder.ToString());
+            _logger.Log(string.Format("Generisan AI search report '{0}' ({1} zapisa).", filePath, records.Count));
+            return filePath;
         }
 
         private void ScanSingleInput(InputTag inputTag)
@@ -458,6 +480,7 @@ namespace ProjekatScada.Services
 
             if (analogInputTag != null)
             {
+                _repository.SaveTagValueHistory(analogInputTag);
                 EvaluateAlarms(analogInputTag);
             }
         }
@@ -482,7 +505,9 @@ namespace ProjekatScada.Services
                     _activatedAlarms.Insert(0, activatedAlarm);
                     _repository.SaveActivatedAlarm(activatedAlarm);
                     _logger.Log(string.Format("Aktiviran alarm #{0} nad tagom '{1}'.", alarm.Id, analogInputTag.TagName));
-                    RaiseAlarmRaised(alarm, activatedAlarm);
+
+                    var activatedAlarmFromDatabase = _repository.GetActivatedAlarmById(activatedAlarm.Id) ?? activatedAlarm;
+                    RaiseAlarmRaised(alarm, activatedAlarmFromDatabase);
                 }
                 else if ((alarm.State == AlarmState.Active || alarm.State == AlarmState.Acknowledged) && shouldReset)
                 {
@@ -548,105 +573,6 @@ namespace ProjekatScada.Services
             else
             {
                 _plcSimulator.EnsureAddress(tag.IOAddress, tag.CurrentValue);
-            }
-        }
-
-        private static ExportedTag CreateExportedTag(TagBase tag)
-        {
-            var exported = new ExportedTag
-            {
-                TagType = tag.TagType,
-                TagName = tag.TagName,
-                Description = tag.Description,
-                IOAddress = tag.IOAddress
-            };
-
-            var inputTag = tag as InputTag;
-            if (inputTag != null)
-            {
-                exported.ScanTime = inputTag.ScanTime;
-                exported.OnOffScan = inputTag.OnOffScan;
-            }
-
-            var analogInputTag = tag as AnalogInputTag;
-            if (analogInputTag != null)
-            {
-                exported.LowLimit = analogInputTag.LowLimit;
-                exported.HighLimit = analogInputTag.HighLimit;
-                exported.Units = analogInputTag.Units;
-                exported.Deadband = analogInputTag.Deadband;
-                exported.Hysteresis = analogInputTag.Hysteresis;
-            }
-
-            var analogOutputTag = tag as AnalogOutputTag;
-            if (analogOutputTag != null)
-            {
-                exported.LowLimit = analogOutputTag.LowLimit;
-                exported.HighLimit = analogOutputTag.HighLimit;
-                exported.Units = analogOutputTag.Units;
-                exported.InitialValue = analogOutputTag.InitialValue;
-            }
-
-            var digitalOutputTag = tag as DigitalOutputTag;
-            if (digitalOutputTag != null)
-            {
-                exported.InitialValue = digitalOutputTag.InitialValue;
-            }
-
-            return exported;
-        }
-
-        private static ExportedAlarm CreateExportedAlarm(Alarm alarm)
-        {
-            return new ExportedAlarm
-            {
-                AnalogInputTagName = alarm.AnalogInputTag != null ? alarm.AnalogInputTag.TagName : string.Empty,
-                Threshold = alarm.Threshold,
-                TriggerType = alarm.TriggerType,
-                Message = alarm.Message
-            };
-        }
-
-        private static TagBase CreateTagFromExport(ExportedTag exportedTag)
-        {
-            switch (exportedTag.TagType)
-            {
-                case TagType.AI:
-                    return new AnalogInputTag(
-                        exportedTag.TagName,
-                        exportedTag.Description,
-                        exportedTag.IOAddress,
-                        exportedTag.ScanTime ?? 1000,
-                        exportedTag.OnOffScan ?? true,
-                        exportedTag.LowLimit ?? 0,
-                        exportedTag.HighLimit ?? 100,
-                        exportedTag.Units ?? string.Empty,
-                        exportedTag.Deadband ?? 0,
-                        exportedTag.Hysteresis ?? 0);
-                case TagType.AO:
-                    return new AnalogOutputTag(
-                        exportedTag.TagName,
-                        exportedTag.Description,
-                        exportedTag.IOAddress,
-                        exportedTag.InitialValue ?? 0,
-                        exportedTag.LowLimit ?? 0,
-                        exportedTag.HighLimit ?? 100,
-                        exportedTag.Units ?? string.Empty);
-                case TagType.DI:
-                    return new DigitalInputTag(
-                        exportedTag.TagName,
-                        exportedTag.Description,
-                        exportedTag.IOAddress,
-                        exportedTag.ScanTime ?? 1000,
-                        exportedTag.OnOffScan ?? true);
-                case TagType.DO:
-                    return new DigitalOutputTag(
-                        exportedTag.TagName,
-                        exportedTag.Description,
-                        exportedTag.IOAddress,
-                        exportedTag.InitialValue ?? 0);
-                default:
-                    throw new InvalidOperationException("Nepoznat tip taga u import fajlu.");
             }
         }
 

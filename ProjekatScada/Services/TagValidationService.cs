@@ -136,6 +136,10 @@ namespace ProjekatScada.Services
             {
                 errors.Add("Units je obavezno polje za analogne tagove.");
             }
+            else if (units.Any(char.IsDigit))
+            {
+                errors.Add("Units ne sme sadržati brojeve. Izaberite jedinicu iz liste.");
+            }
         }
     }
 }

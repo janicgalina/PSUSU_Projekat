@@ -3,12 +3,42 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:infra="clr-namespace:ProjekatScada.Infrastructure"
         Title="SCADA Login"
-        Height="420"
+        Height="450"
         Width="420"
         WindowStartupLocation="CenterScreen"
-        ResizeMode="NoResize">
+        ResizeMode="NoResize"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        Foreground="{DynamicResource ForegroundBrush}">
     <Window.Resources>
         <infra:StringToVisibilityConverter x:Key="StringToVis" />
+
+        <Style x:Key="LoginInputStyle" TargetType="Control">
+            <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}" />
+        </Style>
+
+        <Style x:Key="LoginTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource LoginInputStyle}">
+            <Setter Property="Padding" Value="6" />
+        </Style>
+
+        <Style x:Key="LoginPasswordBoxStyle" TargetType="PasswordBox" BasedOn="{StaticResource LoginInputStyle}">
+            <Setter Property="Padding" Value="6" />
+        </Style>
+
+        <Style x:Key="LoginComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+            <Setter Property="Padding" Value="8,6" />
+        </Style>
+
+        <Style x:Key="LoginButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+
+        <Style x:Key="LoginPrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
     </Window.Resources>
 
     <Grid Margin="20">
@@ -32,54 +62,52 @@
         <TextBlock Grid.Row="1" Text="Korisničko ime:" FontWeight="SemiBold" Margin="0,0,0,6" />
         <TextBox Grid.Row="2"
                  Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
-                 Padding="6"
+                 Style="{StaticResource LoginTextBoxStyle}"
                  Margin="0,0,0,12" />
 
         <TextBlock Grid.Row="3" Text="Lozinka:" FontWeight="SemiBold" Margin="0,0,0,6" />
         <PasswordBox Grid.Row="4"
                      x:Name="PasswordInput"
-                     Padding="6"
+                     Style="{StaticResource LoginPasswordBoxStyle}"
                      Margin="0,0,0,12" />
 
         <StackPanel Grid.Row="5">
             <TextBlock Text="Uloga:" FontWeight="SemiBold" Margin="0,0,0,6" />
             <ComboBox ItemsSource="{Binding Roles}"
                       SelectedItem="{Binding SelectedRole}"
-                      Padding="8,6"
+                      Style="{StaticResource LoginComboBoxStyle}"
                       Margin="0,0,0,8" />
             <TextBlock Text="Lozinka pri registraciji: min. 15 karaktera, veliko/malo slovo i spec. karakter, jedinstvena u bazi."
                        TextWrapping="Wrap"
-                       Foreground="#FF6B7280"
+                       Foreground="{DynamicResource SecondaryForegroundBrush}"
                        FontSize="11"
                        Margin="0,0,0,8" />
         </StackPanel>
 
         <Border Grid.Row="6"
-                Background="#FFFEF5E7"
-                BorderBrush="#FFFF9800"
+                Background="{DynamicResource ValidationBackgroundBrush}"
+                BorderBrush="{DynamicResource ValidationBorderBrush}"
                 BorderThickness="1"
                 Padding="10"
                 Margin="0,8,0,8"
                 Visibility="{Binding ValidationMessage, Converter={StaticResource StringToVis}}">
             <TextBlock Text="{Binding ValidationMessage}"
-                       Foreground="#FFD84315"
+                       Foreground="{DynamicResource ValidationForegroundBrush}"
                        TextWrapping="Wrap" />
         </Border>
 
         <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="Login"
                     Command="{Binding LoginCommand}"
-                    Padding="16,8"
-                    Margin="0,0,8,0"
-                    IsDefault="True"
-                    FontWeight="SemiBold" />
+                    Style="{StaticResource LoginPrimaryButtonStyle}"
+                    IsDefault="True" />
             <Button Content="Registracija"
                     Command="{Binding RegisterCommand}"
-                    Padding="16,8"
-                    Margin="0,0,8,0" />
+                    Style="{StaticResource LoginButtonStyle}" />
             <Button Content="Izlaz"
                     Command="{Binding ExitCommand}"
-                    Padding="16,8"
+                    Style="{StaticResource LoginButtonStyle}"
+                    Margin="0"
                     IsCancel="True" />
         </StackPanel>
     </Grid>
